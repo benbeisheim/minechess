@@ -4,7 +4,7 @@
 import { AppDispatch } from "../../store";
 import { updateGameState } from "../../store/gameSlice";
 import { WSMove } from "../../types/chess";
-
+import { config } from "../../config/environment";
 export type WSMessageType = 'move' | 'gameState' | 'error';
 
 export interface WSMessage {
@@ -34,7 +34,7 @@ export class GameWebSocket {
         if (this.isIntentionalClose) return;
 
         console.log(`Attempting to connect to game: ${this.gameId}`);
-        this.socket = new WebSocket(`ws://localhost:3000/ws/game/${this.gameId}`);
+        this.socket = new WebSocket(`${config.wsUrl}/ws/game/${this.gameId}`);
 
         this.socket.onopen = () => {
             console.log('WebSocket connection established');

@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import  ChessGame  from '../ChessGame/ChessGame';
 import { PlayerColor } from '../../types/chess';
+import { createGame, joinGame } from '../../services/api';
 export function TestInterface() {
     const [gameID, setGameID] = useState<string | null>(null);
     const [inputGameID, setInputGameID] = useState('');
@@ -12,19 +13,8 @@ export function TestInterface() {
         try {
             setStatus('Creating game...');
             // First create the game
-            const createResponse = await fetch('http://localhost:3000/api/game/create', {
-                method: 'POST',
-                credentials: 'include',
-            });
-    
-            if (!createResponse.ok) {
-                throw new Error('Failed to create game');
-            }
-    
-            // Let's log the response to see what we're getting
-            const createData = await createResponse.json();
-            console.log('Create game response:', createData);
-    
+            const createData = await createGame();
+            console.log('createData', createData);
             // Extract the game ID using the correct property name
             const newGameID = createData.game_id;
             if (!newGameID) {
@@ -34,15 +24,7 @@ export function TestInterface() {
             setStatus(`Game created with ID: ${newGameID}`);
     
             // Then join it
-            const joinResponse = await fetch(`http://localhost:3000/api/game/join/${newGameID}`, {
-                method: 'POST',
-                credentials: 'include',
-            });
-    
-            if (!joinResponse.ok) {
-                throw new Error('Failed to join game');
-            }
-            const joinData = await joinResponse.json();
+            const joinData = await joinGame(newGameID);
             console.log('joinData', joinData);
             setPlayerColor(joinData.color as PlayerColor);
             setStatus('Successfully created and joined game');
@@ -58,15 +40,7 @@ export function TestInterface() {
         e.preventDefault();
         try {
             setStatus('Joining game...');
-            const response = await fetch(`http://localhost:3000/api/game/join/${inputGameID}`, {
-                method: 'POST',
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to join game');
-            }
-            const joinData = await response.json();
+            const joinData = await joinGame(inputGameID);
             console.log('joinData', joinData);
             setPlayerColor(joinData.color as PlayerColor);
             setStatus('Successfully joined game');
