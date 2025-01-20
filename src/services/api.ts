@@ -1,6 +1,7 @@
 import { config } from '../config/environment';
 
 export async function createGame() {
+    console.log('createGame fetching from config.apiUrl:', `${config.apiUrl}/api/game/create`);
     const response = await fetch(`${config.apiUrl}/api/game/create`, {
         method: 'POST',
         credentials: 'include',
