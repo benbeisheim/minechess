@@ -5,7 +5,10 @@ export async function createGame() {
         method: 'POST',
         credentials: 'include',
     });
-    return response.json();
+    console.log('createGame response', response);
+    const data = await response.json();
+    console.log('createGame data', data);
+    return data;
 }
 
 export async function joinGame(gameId: string) {
@@ -13,5 +16,8 @@ export async function joinGame(gameId: string) {
         method: 'POST',
         credentials: 'include',
     });
-    return response.json();
+    console.log('joinGame response', response);
+    const data = await response.json();
+    console.log('joinGame data', data);
+    return data;
 }
