@@ -9,8 +9,6 @@ class SoundManager {
             move: new Audio('/sounds/moveSound2.mp3'),
             capture: new Audio('/sounds/captureSound1.mp3'),
             check: new Audio('/sounds/checkSound1.mp3'),
-            gameOver: new Audio('/sounds/game-over.mp3'),
-            invalid: new Audio('/sounds/invalid.mp3'),
             minePlaced: new Audio('/sounds/minePlace2.mp3'),
             explosion: new Audio('/sounds/smallExplosion.mp3')
         };
