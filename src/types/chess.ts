@@ -61,6 +61,10 @@ export interface GameState {
             position: Position;
             piece: PieceData | null;
         };
+        rookMove?: {
+            from: Position;
+            to: Position;
+        };
     } | null;
     lastMove: {
         from: Position;

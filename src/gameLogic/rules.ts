@@ -146,15 +146,23 @@ export function isNoLegalMoves(gameState: GameState) : boolean {
     return legalMoves.length === 0;
 }
 
-export function makeTemporaryMove(board: (PieceData | null) [][], temporaryMove: {from: {position: Position, piece: PieceData | null}, to: {position: Position, piece: PieceData | null}}) : (PieceData | null) [][] {
+export function makeTemporaryMove(board: (PieceData | null) [][], temporaryMove: {from: {position: Position, piece: PieceData | null}, to: {position: Position, piece: PieceData | null}, rookMove?: {from: Position, to: Position}}) : (PieceData | null) [][] {
     board[temporaryMove.to.position.y][temporaryMove.to.position.x] = board[temporaryMove.from.position.y][temporaryMove.from.position.x];
     board[temporaryMove.from.position.y][temporaryMove.from.position.x] = null;
+    if (temporaryMove.rookMove) {
+        board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x] = board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x];
+        board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x] = null;
+    }
     return board;
 }
 
-export function undoTemporaryMove(board: (PieceData | null) [][], temporaryMove: {from: {position: Position, piece: PieceData | null}, to: {position: Position, piece: PieceData | null}}) : (PieceData | null) [][] {
+export function undoTemporaryMove(board: (PieceData | null) [][], temporaryMove: {from: {position: Position, piece: PieceData | null}, to: {position: Position, piece: PieceData | null}, rookMove?: {from: Position, to: Position}}) : (PieceData | null) [][] {
     board[temporaryMove.from.position.y][temporaryMove.from.position.x] = temporaryMove.from.piece;
     board[temporaryMove.to.position.y][temporaryMove.to.position.x] = temporaryMove.to.piece;
+    if (temporaryMove.rookMove) {
+        board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x] = board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x];
+        board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x] = null;
+    }
     return board;
 }
 
