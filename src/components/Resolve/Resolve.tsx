@@ -3,7 +3,7 @@ interface ResolveProps {
 }
 
 const Resolve: React.FC<ResolveProps> = ({ resolve }) => {
-    return <div>{resolve}</div>;
+    return resolve ? <div className="text-white">{resolve}</div> : null;
 }
 
 export default Resolve;

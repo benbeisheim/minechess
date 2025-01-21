@@ -86,7 +86,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     const getSquareNotation = (position: Position): string => {
         const files =  FILES;
         const ranks = RANKS;
-        return orientation === 'white' ? `${files[position.x]}${ranks[position.y]}` : `${files[7 - position.x]}${ranks[7 - position.y]}`;
+        return `${files[position.x]}${ranks[position.y]}`;
     };
 
     const isSquareHighlighted = (pos: Position): boolean => {

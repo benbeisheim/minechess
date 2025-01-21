@@ -1,4 +1,4 @@
-import { Position, BoardState, PlayerColor, GameState, PieceData, PieceType } from "../types/chess";
+import { Position, BoardState, PlayerColor, GameState, PieceData, PieceType, TemporaryMove } from "../types/chess";
 import { boundaryCheck, getPseudoLegalMoves } from "./moves";
 
 export function getLegalMoves(position: Position, gameState: GameState) : Position[] {
@@ -146,7 +146,7 @@ export function isNoLegalMoves(gameState: GameState) : boolean {
     return legalMoves.length === 0;
 }
 
-export function makeTemporaryMove(board: (PieceData | null) [][], temporaryMove: {from: {position: Position, piece: PieceData | null}, to: {position: Position, piece: PieceData | null}, rookMove?: {from: Position, to: Position}}) : (PieceData | null) [][] {
+export function makeTemporaryMove(board: (PieceData | null) [][], temporaryMove: TemporaryMove) : (PieceData | null) [][] {
     console.log("temporaryMove making", temporaryMove);
     board[temporaryMove.to.position.y][temporaryMove.to.position.x] = board[temporaryMove.from.position.y][temporaryMove.from.position.x];
     board[temporaryMove.from.position.y][temporaryMove.from.position.x] = null;
@@ -154,15 +154,21 @@ export function makeTemporaryMove(board: (PieceData | null) [][], temporaryMove:
         board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x] = board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x];
         board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x] = null;
     }
+    if (temporaryMove.enPassant) {
+        board[temporaryMove.enPassant.position.y][temporaryMove.enPassant.position.x] = null;
+    }
     return board;
 }
 
-export function undoTemporaryMove(board: (PieceData | null) [][], temporaryMove: {from: {position: Position, piece: PieceData | null}, to: {position: Position, piece: PieceData | null}, rookMove?: {from: Position, to: Position}}) : (PieceData | null) [][] {
+export function undoTemporaryMove(board: (PieceData | null) [][], temporaryMove: TemporaryMove) : (PieceData | null) [][] {
     board[temporaryMove.from.position.y][temporaryMove.from.position.x] = temporaryMove.from.piece;
     board[temporaryMove.to.position.y][temporaryMove.to.position.x] = temporaryMove.to.piece;
     if (temporaryMove.rookMove) {
         board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x] = board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x];
         board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x] = null;
+    }
+    if (temporaryMove.enPassant) {
+        board[temporaryMove.enPassant.position.y][temporaryMove.enPassant.position.x] = temporaryMove.enPassant.piece;
     }
     return board;
 }

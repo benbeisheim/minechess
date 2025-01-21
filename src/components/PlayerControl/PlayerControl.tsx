@@ -13,7 +13,7 @@ const PlayerControl: React.FC<PlayerControlProps> = ({ onResign, onDrawOffer }) 
     const { players, playerColor, resolve } = useAppSelector((state: RootState) => state.game);
     return (
         <div>
-            {resolve && <Resolve resolve={resolve} />}
+            {<Resolve resolve={resolve} />}
             <div className="flex flex-col bg-darker-gray p-4 h-full justify-center">
                 <div className="shrink-0 mb-4">
                     <PlayerCard player={players[playerColor === "white" ? "black" : "white"]} />

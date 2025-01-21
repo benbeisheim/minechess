@@ -52,24 +52,30 @@ export interface GameState {
     promotionSquare: Position | null;
     mine: Position | null;
     promotionPiece: PieceType | null;
-    temporaryMove: {
-        from: {
-            position: Position;
-            piece: PieceData | null;
-        };
-        to: {
-            position: Position;
-            piece: PieceData | null;
-        };
-        rookMove?: {
-            from: Position;
-            to: Position;
-        };
-    } | null;
+    temporaryMove: TemporaryMove | null;
     lastMove: {
         from: Position;
         to: Position;
     } | null;
+}
+
+export interface TemporaryMove {
+    from: {
+        position: Position;
+        piece: PieceData | null;
+    };
+    to: {
+        position: Position;
+        piece: PieceData | null;
+    };
+    rookMove?: {
+        from: Position;
+        to: Position;
+    };
+    enPassant?: {
+        position: Position;
+        piece: PieceData | null;
+    };
 }
 
 export interface CapturedPieces {
