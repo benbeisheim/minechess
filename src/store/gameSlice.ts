@@ -94,7 +94,7 @@ const gameSlice = createSlice({
                         if (state.temporaryMove.from.piece?.type === 'king' && (state.temporaryMove.to.position.x - state.temporaryMove.from.position.x === 2 || state.temporaryMove.to.position.x - state.temporaryMove.from.position.x === -2)) {
                             state.temporaryMove.rookMove = {
                                 from: state.temporaryMove.to.position.x === 6 ? {x: 7, y: state.temporaryMove.from.position.y} : {x: 0, y: state.temporaryMove.from.position.y},
-                                to: state.temporaryMove.to.position.x === 6 ? {x: 5, y: state.temporaryMove.from.position.y} : {x: 2, y: state.temporaryMove.from.position.y}
+                                to: state.temporaryMove.to.position.x === 6 ? {x: 5, y: state.temporaryMove.from.position.y} : {x: 3, y: state.temporaryMove.from.position.y}
                             };
                         }
                         state.boardState.board = makeTemporaryMove(state.boardState.board, state.temporaryMove);
