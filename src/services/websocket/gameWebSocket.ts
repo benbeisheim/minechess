@@ -5,6 +5,7 @@ import { AppDispatch } from "../../store";
 import { updateGameState } from "../../store/gameSlice";
 import { WSMove } from "../../types/chess";
 import { config } from "../../config/environment";
+import { getOrCreatePlayerId } from "../playerIdentification";
 export type WSMessageType = 'move' | 'gameState' | 'error';
 
 export interface WSMessage {
@@ -33,8 +34,10 @@ export class GameWebSocket {
         // Don't try to reconnect if we're intentionally closing
         if (this.isIntentionalClose) return;
 
+        const playerId = getOrCreatePlayerId();
+
         console.log(`Attempting to connect to game: ${this.gameId}`);
-        this.socket = new WebSocket(`${config.wsUrl}/ws/game/${this.gameId}`);
+        this.socket = new WebSocket(`${config.wsUrl}/ws/game/${this.gameId}?playerId=${playerId}`);
 
         this.socket.onopen = () => {
             console.log('WebSocket connection established');
