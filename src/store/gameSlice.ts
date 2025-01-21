@@ -152,6 +152,7 @@ const gameSlice = createSlice({
                 state.boardState.board = makeTemporaryPromotionMove(state.boardState.board, state.temporaryMove, state.promotionPiece);
             }
             state.promotionSquare = null;
+            state.selectedSquare = null;
             return state;
         },
         setPlayerColor(state, action: PayloadAction<PlayerColor>) {
