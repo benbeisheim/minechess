@@ -64,7 +64,7 @@ export function TestInterface() {
 
     return (
         <div className="p-4">
-            <h1 className="text-2xl mb-4">Chess Game Test Interface</h1>
+            <h1 className="text-2xl mb-4 text-white">Chess Game Test Interface</h1>
             
             {error && (
                 <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
@@ -88,7 +88,7 @@ export function TestInterface() {
             </div>
 
             <div>
-                <h2 className="text-xl mb-2">Join Existing Game</h2>
+                <h2 className="text-xl mb-2 text-white">Join Existing Game</h2>
                 <form onSubmit={handleJoinGame} className="space-y-4">
                     <input
                         type="text"
