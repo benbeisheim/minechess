@@ -13,12 +13,14 @@ interface PieceProps {
     onDragStart: () => void;
 }
 
+const selectToMove = (state: RootState) => state.game.toMove;
+
 export const Piece: React.FC<PieceProps> = ({ type, color, size, isSelected, onDragStart }) => {
     const pieceImage = getPieceImage(color, type);
     // State to track if we're dragging and the current position
     const [isDragging, setIsDragging] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
-    const { toMove } = useAppSelector((state: RootState) => state.game);
+    const toMove  = useAppSelector(selectToMove);
     
     // Reference to the piece element for getting its initial position
     const pieceRef = useRef<HTMLDivElement>(null);

@@ -24,6 +24,11 @@ export interface WSMove {
     mine: Position;
 }
 
+export interface MatchFoundEvent {
+    gameId: string;
+    color: PlayerColor;
+}
+
 // Represents a chess piece with all its properties
 export interface PieceData {
     type: PieceType;

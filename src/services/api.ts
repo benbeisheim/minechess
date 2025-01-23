@@ -25,8 +25,22 @@ export async function joinGame(gameId: string) {
             'X-Player-ID': playerId,
         },
     });
-    console.log('joinGame response', response);
     const data = await response.json();
-    console.log('joinGame data', data);
     return data;
+}
+
+export async function joinMatchmakingQueue(): Promise<void> {
+    const response = await fetch('/api/game/matchmaking/join', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Player-ID': getOrCreatePlayerId(),
+        },
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to join matchmaking queue');
+    }
 }

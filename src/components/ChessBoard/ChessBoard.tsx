@@ -3,6 +3,7 @@ import Square from './Square';
 import { Position, PlayerColor, PieceType } from '../../types/chess';
 import { useAppSelector } from '../../store/hooks';
 import { RootState } from '../../store';
+import { createSelector } from '@reduxjs/toolkit';
 
 // The board dimensions are defined as constants to make the code more maintainable
 const BOARD_SIZE = 8;
@@ -18,22 +19,26 @@ interface ChessBoardProps {
     handlePromotionClick: (pieceType: PieceType) => void;
 }
 
+const selectLocalBoardState = createSelector(
+    (state: RootState) => state.game.boardState.board,
+    (state: RootState) => state.game.boardState.whiteKingPosition,
+    (state: RootState) => state.game.boardState.blackKingPosition,
+    (state: RootState) => state.game.selectedSquare,
+    (state: RootState) => state.game.legalMoves,
+    (board, whiteKingPosition, blackKingPosition, selectedSquare, legalMoves) => ({board, whiteKingPosition, blackKingPosition, selectedSquare, legalMoves})
+)
+
 const ChessBoard: React.FC<ChessBoardProps> = ({ 
     orientation,
     onSquareClick,
     maxSize = 1800,
     padding = 0,
-    handlePromotionClick
+    handlePromotionClick,
 }) => {
-    // Access necessary game state via Redux
-    const { boardState, selectedSquare, legalMoves } = useAppSelector((state: RootState) => ({
-        boardState: state.game.boardState,
-        selectedSquare: state.game.selectedSquare,
-        legalMoves: state.game.legalMoves,
-    }));
-
     const containerRef = useRef<HTMLDivElement>(null);
     const [squareSize, setSquareSize] = useState(64);
+
+    const localBoardState = useAppSelector(selectLocalBoardState);
 
     useEffect(() => {
         const updateSize = () => {
@@ -90,7 +95,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     };
 
     const isSquareHighlighted = (pos: Position): boolean => {
-        return legalMoves.some(move => move.x === pos.x && move.y === pos.y);
+        return localBoardState.legalMoves.some(move => move.x === pos.x && move.y === pos.y);
     };
 
 
@@ -119,8 +124,8 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
     
     // Simplified renderSquare function - no need for coordinate transformation
     const renderSquare = (position: Position) => {
-        const piece = boardState.board[position.y][position.x];
-        const isSelected = selectedSquare?.x === position.x && selectedSquare?.y === position.y;
+        const piece = localBoardState.board[position.y][position.x];
+        const isSelected = localBoardState.selectedSquare?.x === position.x && localBoardState.selectedSquare?.y === position.y;
         return (
             <Square 
                 key={`${position.x}-${position.y}`}

@@ -7,14 +7,36 @@ import { GameWebSocket } from "../../services/websocket/gameWebSocket";
 import { useEffect, useRef } from "react";
 import { PlayerColor } from "../../types/chess";
 import { RootState } from "../../store";
+import { createSelector } from "@reduxjs/toolkit";
+
 interface ChessGameProps {
     gameId: string;
     playerColor: PlayerColor;
+    handleLeaveGame: () => void;
 }
 
-const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor }) => {
+const selectGameState = createSelector(
+    (state: RootState) => state.game.boardState.board,
+    (state: RootState) => state.game.players,
+    (state: RootState) => state.game.selectedSquare,
+    (state: RootState) => state.game.temporaryMove,
+    (state: RootState) => state.game.promotionPiece,
+    (state: RootState) => state.game.legalMoves,
+    (state: RootState) => state.game.resolve,
+    (board, players, selectedSquare, temporaryMove, promotionPiece, legalMoves, resolve) => ({
+        board,
+        players,
+        selectedSquare,
+        temporaryMove,
+        promotionPiece,
+        legalMoves,
+        resolve
+    })
+);
+
+const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveGame }) => {
     const dispatch = useAppDispatch();
-    const gameState = useAppSelector((state: RootState) => state.game);
+    const gameState = useAppSelector(selectGameState);
     const gameSocket = useRef<GameWebSocket | null>(null);
 
     useEffect(() => {
@@ -31,7 +53,7 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor }) => {
         const temporaryMove = gameState.temporaryMove;
         const promotionPiece = gameState.promotionPiece;
         // For any move besides promotion, select the square
-        if (selectedSquare && gameState.boardState.board[selectedSquare.y][selectedSquare.x]?.type === 'pawn' && 
+        if (selectedSquare && gameState.board[selectedSquare.y][selectedSquare.x]?.type === 'pawn' && 
         (position.y === 0 || position.y === 7) && 
         gameState.legalMoves.some(move => move.x === position.x && move.y === position.y)) {
             dispatch(setPromotionSquare(position));
@@ -41,7 +63,7 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor }) => {
         }
         
         // If this click would result in a move, send it to the server
-        if (temporaryMove && gameState.boardState.board[position.y][position.x] === null) {
+        if (temporaryMove && gameState.board[position.y][position.x] === null) {
             console.log("Sending move--------", temporaryMove, promotionPiece, position);
             if (promotionPiece) {
                 gameSocket.current?.sendMove({
@@ -66,17 +88,21 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor }) => {
 
     return (
         <div className="h-[85vh] aspect-[4/3] grid grid-cols-4 gap-4">
-            <div className="col-span-3 flex flex-col justify-between">
+            <div className="col-span-3 h-full">
                 <ChessBoard 
                     orientation={playerColor} 
                     onSquareClick={(!gameState.resolve && gameState.players.black.name !== "" && gameState.players.white.name !== "") ? onSquareClick : () => {}} 
                     handlePromotionClick={handlePromotionClick} 
                 />
             </div>
-            <div className="col-span-1 h-full flex justify-center items-center"> 
+            <div className="col-span-1 h-full overflow-y-auto"> 
                 <PlayerControl 
                     onResign={() => {}}
                     onDrawOffer={() => {}}
+                    onLeaveGame={() => {
+                        handleLeaveGame();
+                        gameSocket.current?.disconnect();
+                    }}
                 />
             </div>
         </div>

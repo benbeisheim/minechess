@@ -6,15 +6,16 @@ import Clock from "../Clock/Clock";
 
 const PlayerCard: React.FC<{
     player: Player;
-}> = ({ player }) => {
+    orientation: "top" | "bottom";
+}> = ({ player, orientation }) => {
     const dispatch = useAppDispatch();
     const { toMove, resolve, moveHistory } = useAppSelector((state: RootState) => state.game);
     const timeLeft = player.timeLeft;
     const isActive = !resolve && timeLeft > 0 && toMove === player.color && moveHistory.length !== 0;
 
-    return (
-        <div className="flex-col w-full border-2 border-neutral-500">
-            <div className="text-2xl font-bold text-white w-full text-center">{player.color}</div>
+    return orientation === "top" ? (
+        <div className="flex-col w-full border-2 border-neutral-500 grid grid-rows-2">
+            <div className="row-span-1 font-bold text-white w-full text-center">{player.color || "waiting for opponent..."}</div>
             <Clock 
                 initialTime={timeLeft}
                 isRunning={isActive}
@@ -25,6 +26,20 @@ const PlayerCard: React.FC<{
                     }));
                 }}
             />
+        </div>
+    ) : (
+        <div className="flex-col w-full border-2 border-neutral-500 grid grid-rows-2">
+            <Clock 
+                initialTime={timeLeft}
+                isRunning={isActive}
+                onTimeUpdate={(time) => {
+                    dispatch(updateClock({
+                        timeLeft: Math.floor(time),
+                        color: player.color
+                    }));
+                }}
+            />
+            <div className="row-span-1 font-bold text-white w-full text-center">{player.color || "waiting for opponent..."}</div>
         </div>
     );
 };

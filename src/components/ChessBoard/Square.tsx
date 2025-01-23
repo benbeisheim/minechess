@@ -7,6 +7,7 @@ import { RootState } from '../../store';
 import PromotionChoice from '../Piece/PromotionChoice';
 import { selectSquare } from '../../store/gameSlice';
 import { getLandMine } from '../../utils/landMines';
+import { createSelector } from '@reduxjs/toolkit';
 
 interface SquareProps {
     position: Position;
@@ -31,12 +32,22 @@ const Square: React.FC<SquareProps> = ({
     notation,
     squareSize,
     onSquareClick,
-    handlePromotionClick
+    handlePromotionClick,
 }) => {
-    const { promotionSquare, mine, temporaryMove } = useAppSelector((state: RootState) => state.game);
     const dispatch = useAppDispatch();
+    const squareState = useAppSelector(
+        createSelector(
+            (state: RootState) => state.game.boardState.board[position.y][position.x],
+            (state: RootState) => state.game.selectedSquare,
+            (state: RootState) => state.game.legalMoves,
+            (state: RootState) => state.game.promotionSquare,
+            (state: RootState) => state.game.mine,
+            (state: RootState) => state.game.temporaryMove,
+            (piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove) => ({piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove})
+        )
+    );
 
-    const isPromotionSquare = promotionSquare && promotionSquare.x === position.x && promotionSquare.y === position.y;
+    const isPromotionSquare = squareState.promotionSquare && squareState.promotionSquare.x === position.x && squareState.promotionSquare.y === position.y;
     // Make the color classes more specific to ensure they apply
     const baseColor = isLight ? 'bg-amber-100' : 'bg-amber-800';
     
@@ -64,7 +75,7 @@ const Square: React.FC<SquareProps> = ({
             onMouseLeave={() => {setIsHovered(false)}}
         >
             {isHighlighted && <SquareHighlight size={squareSize} isPiece={piece !== null} isLight={isLight} isTemporaryMove={false}/>}
-            {isHovered && temporaryMove && !piece && 
+            {isHovered && squareState.temporaryMove && !piece && 
             <SquareHighlight size={squareSize} isPiece={false} isLight={isLight} isTemporaryMove={true} />}
             {!isPromotionSquare && piece && (
                 <Piece 
@@ -86,7 +97,7 @@ const Square: React.FC<SquareProps> = ({
                     {notation[0]} {/* First character of notation is file */}
                 </div>
             )}
-            {mine && mine.x === position.x && mine.y === position.y && (
+            {squareState.mine && squareState.mine.x === position.x && squareState.mine.y === position.y && (
                 <img src={getLandMine()} alt="Land Mine" className="w-[70%] h-[70%]" />
             )}
             {shouldShowRankLabel && (

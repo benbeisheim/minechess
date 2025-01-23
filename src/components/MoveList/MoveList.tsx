@@ -30,7 +30,7 @@ const MoveList: React.FC = () => {
 
     return (
         // Single flex container that grows and handles overflow
-        <div className="h-[200px] flex flex-col bg-darkest-gray">
+        <div className="h-full flex flex-col bg-darkest-gray">
             <div className="shrink-0">
                 <table className="w-full">
                     <thead>
