@@ -1,4 +1,5 @@
 // src/components/Game.tsx
+/*
 import { useEffect, useState } from 'react';
 import ChessGame from '../ChessGame/ChessGame';
 
@@ -47,3 +48,4 @@ export function Game() {
 }
 
 export default Game;
+*/
