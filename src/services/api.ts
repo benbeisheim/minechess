@@ -30,7 +30,7 @@ export async function joinGame(gameId: string) {
 }
 
 export async function joinMatchmakingQueue(): Promise<void> {
-    const response = await fetch('/api/game/matchmaking/join', {
+    const response = await fetch(`${config.apiUrl}/api/game/matchmaking/join`, {
         method: 'POST',
         credentials: 'include',
         headers: {
