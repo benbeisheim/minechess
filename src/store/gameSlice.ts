@@ -36,7 +36,8 @@ const initialState: GameState = {
     mine: null,
     promotionPiece: null,
     temporaryMove: null,
-    lastMove: null
+    lastMove: null,
+    explosion: null
 };
 
 // Create the slice
