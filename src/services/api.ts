@@ -30,6 +30,7 @@ export async function joinGame(gameId: string) {
 }
 
 export async function joinMatchmakingQueue(): Promise<void> {
+    console.log('joinMatchmakingQueue fetching from config.apiUrl:', `${config.apiUrl}/api/game/matchmaking/join`);
     const response = await fetch(`${config.apiUrl}/api/game/matchmaking/join`, {
         method: 'POST',
         credentials: 'include',
@@ -40,6 +41,7 @@ export async function joinMatchmakingQueue(): Promise<void> {
     });
 
     if (!response.ok) {
+        console.log('joinMatchmakingQueue error response', response);
         const error = await response.json();
         throw new Error(error.message || 'Failed to join matchmaking queue');
     }

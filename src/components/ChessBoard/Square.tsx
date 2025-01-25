@@ -8,6 +8,7 @@ import PromotionChoice from '../Piece/PromotionChoice';
 import { selectSquare } from '../../store/gameSlice';
 import { getLandMine } from '../../utils/landMines';
 import { createSelector } from '@reduxjs/toolkit';
+import ExplosionEffect from '../Explosion/Explosion';
 
 interface SquareProps {
     position: Position;
@@ -43,7 +44,8 @@ const Square: React.FC<SquareProps> = ({
             (state: RootState) => state.game.promotionSquare,
             (state: RootState) => state.game.mine,
             (state: RootState) => state.game.temporaryMove,
-            (piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove) => ({piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove})
+            (state: RootState) => state.game.explosion,
+            (piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion) => ({piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion})
         )
     );
 
@@ -85,6 +87,7 @@ const Square: React.FC<SquareProps> = ({
                     isSelected={isSelected}
                     onDragStart={() => {
                         dispatch(selectSquare({position: position, playerColor: orientation}));
+                        setIsHovered(false);
                     }}
                 />
             )}

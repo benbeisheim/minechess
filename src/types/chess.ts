@@ -62,6 +62,7 @@ export interface GameState {
         from: Position;
         to: Position;
     } | null;
+    explosion: Position | null;
 }
 
 export interface TemporaryMove {

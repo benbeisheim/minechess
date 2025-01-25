@@ -99,7 +99,7 @@ const gameSlice = createSlice({
                             };
                         }
                         // Handle en passant
-                        if (state.temporaryMove.from.piece?.type === 'pawn' && state.temporaryMove.to.position.x !== state.temporaryMove.from.position.x) {
+                        if (state.temporaryMove.from.piece?.type === 'pawn' && state.temporaryMove.to.position.x === state.enPassantTarget?.x && state.temporaryMove.to.position.y === state.enPassantTarget?.y) {
                             state.temporaryMove.enPassant = {
                                 position: {x: state.temporaryMove.to.position.x, y: state.temporaryMove.to.position.y + (state.toMove === 'white' ? 1 : -1)},
                                 piece: state.boardState.board[state.temporaryMove.to.position.y + (state.toMove === 'white' ? 1 : -1)][state.temporaryMove.to.position.x]
