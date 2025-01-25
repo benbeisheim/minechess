@@ -1,3 +1,4 @@
+/*
 import Lottie from 'react-lottie';
 import explosionAnimation from '../../assets/animations/explosion.json';
 import { Position } from '../../types/chess';
@@ -41,3 +42,4 @@ const ExplosionEffect: React.FC<ExplosionProps> = ({
 };
 
 export default ExplosionEffect;
+*/

@@ -8,7 +8,6 @@ import PromotionChoice from '../Piece/PromotionChoice';
 import { selectSquare } from '../../store/gameSlice';
 import { getLandMine } from '../../utils/landMines';
 import { createSelector } from '@reduxjs/toolkit';
-import ExplosionEffect from '../Explosion/Explosion';
 
 interface SquareProps {
     position: Position;
