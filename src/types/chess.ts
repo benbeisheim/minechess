@@ -56,6 +56,7 @@ export interface GameState {
     };
     promotionSquare: Position | null;
     mine: Position | null;
+    lastMine: Position | null;
     promotionPiece: PieceType | null;
     temporaryMove: TemporaryMove | null;
     lastMove: {

@@ -8,6 +8,7 @@ import PromotionChoice from '../Piece/PromotionChoice';
 import { selectSquare } from '../../store/gameSlice';
 import { getLandMine } from '../../utils/landMines';
 import { createSelector } from '@reduxjs/toolkit';
+import ExplosionEffect from '../Explosion/Explosion';
 
 interface SquareProps {
     position: Position;
@@ -44,7 +45,9 @@ const Square: React.FC<SquareProps> = ({
             (state: RootState) => state.game.mine,
             (state: RootState) => state.game.temporaryMove,
             (state: RootState) => state.game.explosion,
-            (piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion) => ({piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion})
+            (state: RootState) => state.game.lastMine,
+            (state: RootState) => state.game.toMove,
+            (piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion, lastMine, toMove) => ({piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion, lastMine, toMove})
         )
     );
 
@@ -75,9 +78,9 @@ const Square: React.FC<SquareProps> = ({
             onMouseOver={() => {setIsHovered(true)}}
             onMouseLeave={() => {setIsHovered(false)}}
         >
-            {isHighlighted && <SquareHighlight size={squareSize} isPiece={piece !== null} isLight={isLight} isTemporaryMove={false}/>}
-            {isHovered && squareState.temporaryMove && !piece && 
-            <SquareHighlight size={squareSize} isPiece={false} isLight={isLight} isTemporaryMove={true} />}
+            {isHighlighted && <SquareHighlight size={squareSize} isPiece={piece !== null} isLight={isLight} isTemporaryMove={false} isLastMine={false} />}
+            {isHovered && squareState.temporaryMove && !piece  &&
+            <SquareHighlight size={squareSize} isPiece={false} isLight={isLight} isTemporaryMove={true} isLastMine={false} />}
             {!isPromotionSquare && piece && (
                 <Piece 
                     type={piece.type}
@@ -90,6 +93,9 @@ const Square: React.FC<SquareProps> = ({
                     }}
                 />
             )}
+            {squareState.lastMine && squareState.lastMine.x === position.x && squareState.lastMine.y === position.y && (orientation !== squareState.toMove || !squareState.temporaryMove) && (
+                <SquareHighlight size={squareSize} isPiece={false} isLight={isLight} isTemporaryMove={true} isLastMine={true} />
+            )}
             {isPromotionSquare && ( <PromotionChoice handlePromotionClick={handlePromotionClick} orientation={orientation} /> )}
             {shouldShowFileLabel && (
                 <div 
@@ -100,7 +106,10 @@ const Square: React.FC<SquareProps> = ({
                 </div>
             )}
             {squareState.mine && squareState.mine.x === position.x && squareState.mine.y === position.y && (
-                <img src={getLandMine()} alt="Land Mine" className="w-[70%] h-[70%]" />
+                <img src={getLandMine()} alt="Land Mine" className="w-[70%] h-[70%] z-10" />
+            )}
+            {squareState.explosion && squareState.explosion.x === position.x && squareState.explosion.y === position.y && (
+                <ExplosionEffect position={position} />
             )}
             {shouldShowRankLabel && (
                 <div 

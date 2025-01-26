@@ -34,6 +34,7 @@ const initialState: GameState = {
     },
     promotionSquare: null,
     mine: null,
+    lastMine: null,
     promotionPiece: null,
     temporaryMove: null,
     lastMove: null,
