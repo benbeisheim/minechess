@@ -1,6 +1,6 @@
 import React from 'react';
-import { getBombHighlight, getSquareHighlight, getTargetCross } from '../../utils/squareHighlights';
-import { getLandMine, getBomb } from '../../utils/landMines';
+import { getSquareHighlight, getTargetCross } from '../../utils/squareHighlights';
+import { getLandMine } from '../../utils/landMines';
 
 interface SquareHighlightProps {
     size: number;
