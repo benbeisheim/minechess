@@ -1,7 +1,7 @@
-import Lottie from 'lottie-react';
+import Lottie, { LottieRefCurrentProps } from 'lottie-react';
 import explosionAnimation from '../../assets/animations/explosion.json';
 import { Position } from '../../types/chess';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface ExplosionProps {
     position: Position;  // Your existing Position type
@@ -14,6 +14,13 @@ const ExplosionEffect: React.FC<ExplosionProps> = ({
     size = 64  // Default to your square size
 }) => {
     const [isVisible, setIsVisible] = useState(true);
+    const lottieRef = useRef<LottieRefCurrentProps>(null);
+
+    useEffect(() => {
+        if (lottieRef.current) {
+            lottieRef.current.setSpeed(0.8);
+        }
+    }, []);
 
     const handleComplete = () => {
         setIsVisible(false);
@@ -35,6 +42,7 @@ const ExplosionEffect: React.FC<ExplosionProps> = ({
             }}
         >
             <Lottie 
+                lottieRef={lottieRef}
                 animationData={explosionAnimation}
                 loop={false}
                 autoplay={true}
