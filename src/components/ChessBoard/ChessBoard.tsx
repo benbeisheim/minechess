@@ -17,6 +17,7 @@ interface ChessBoardProps {
     maxSize?: number;
     padding?: number;
     handlePromotionClick: (pieceType: PieceType) => void;
+    selectedColor: string;
 }
 
 const selectLocalBoardState = createSelector(
@@ -29,6 +30,7 @@ const selectLocalBoardState = createSelector(
 )
 
 const ChessBoard: React.FC<ChessBoardProps> = ({ 
+    selectedColor,
     orientation,
     onSquareClick,
     maxSize = 1800,
@@ -137,6 +139,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
                 notation={getSquareNotation(position)}
                 squareSize={squareSize}
                 orientation={orientation}
+                boardColor={selectedColor}
                 onSquareClick={() => onSquareClick(position)}
                 handlePromotionClick={handlePromotionClick}
             />

@@ -19,6 +19,7 @@ interface SquareProps {
     orientation: PlayerColor;
     notation: string;
     squareSize: number;
+    boardColor: string; // Color
     onSquareClick?: () => void;
     handlePromotionClick: (pieceType: PieceType) => void;
 }
@@ -32,9 +33,13 @@ const Square: React.FC<SquareProps> = ({
     orientation,
     notation,
     squareSize,
+    boardColor,
     onSquareClick,
     handlePromotionClick,
 }) => {
+
+    console.log("Square received boardColor:", boardColor);
+
     const dispatch = useAppDispatch();
     const squareState = useAppSelector(
         createSelector(
@@ -53,8 +58,21 @@ const Square: React.FC<SquareProps> = ({
 
     const isPromotionSquare = squareState.promotionSquare && squareState.promotionSquare.x === position.x && squareState.promotionSquare.y === position.y;
     // Make the color classes more specific to ensure they apply
-    const baseColor = isLight ? 'bg-amber-100' : 'bg-amber-800';
+    const colorMap: Record<string, [string, string]> = {
+        Amber: ["bg-amber-100", "bg-amber-700"],
+        Gray: ["bg-gray-100", "bg-gray-600"],
+        Blue: ["bg-cyan-100", "bg-cyan-700"],
+        Green: ["bg-lime-100", "bg-lime-700"],
+        Purple: ["bg-fuchsia-100", "bg-fuchsia-700"],
+    };
+
+    const baseColor = colorMap[boardColor]
+        ? isLight
+            ? colorMap[boardColor][0]
+            : colorMap[boardColor][1]
+        : isLight
     
+
     // Determine if this square should show labels
     const shouldShowFileLabel = orientation === 'white' ? position.y === 7 : position.y === 0;
     const shouldShowRankLabel = orientation === 'white' ? position.x === 0 : position.x === 7;

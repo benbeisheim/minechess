@@ -4,7 +4,7 @@ import { PieceType, Position } from "../../types/chess";
 import ChessBoard from "../ChessBoard/ChessBoard";
 import PlayerControl from "../PlayerControl/PlayerControl";
 import { GameWebSocket } from "../../services/websocket/gameWebSocket";
-import { useEffect, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { PlayerColor } from "../../types/chess";
 import { RootState } from "../../store";
 import { createSelector } from "@reduxjs/toolkit";
@@ -38,6 +38,7 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
     const dispatch = useAppDispatch();
     const gameState = useAppSelector(selectGameState);
     const gameSocket = useRef<GameWebSocket | null>(null);
+    const [selectedColor, setSelectedColor] = useState("amber"); // Default color
 
     useEffect(() => {
         dispatch(setPlayerColor(playerColor));
@@ -89,7 +90,8 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
     return (
         <div className="h-[85vh] aspect-[4/3] grid grid-cols-4 gap-4">
             <div className="col-span-3 h-full">
-                <ChessBoard 
+                <ChessBoard
+                    selectedColor = {selectedColor} 
                     orientation={playerColor} 
                     onSquareClick={(!gameState.resolve && gameState.players.black.name !== "" && gameState.players.white.name !== "") ? onSquareClick : () => {}} 
                     handlePromotionClick={handlePromotionClick} 
@@ -97,6 +99,9 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
             </div>
             <div className="col-span-1 h-full overflow-y-auto"> 
                 <PlayerControl 
+                    onChangeColor={(color) => {
+                        setSelectedColor(color)
+                    }}
                     onResign={() => {}}
                     onDrawOffer={() => {}}
                     onLeaveGame={() => {

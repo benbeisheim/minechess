@@ -1,9 +1,9 @@
 // src/components/TestInterface.tsx
 import { useEffect, useState } from 'react';
-import  ChessGame  from '../ChessGame/ChessGame';
+import ChessGame from '../ChessGame/ChessGame';
 import { PlayerColor } from '../../types/chess';
 import { createGame, joinGame } from '../../services/api';
-import { useMatchmaking } from '../../hooks/useMatchmaking';
+
 export function TestInterface() {
     const [gameID, setGameID] = useState<string | null>(null);
     const [inputGameID, setInputGameID] = useState('');
@@ -11,49 +11,22 @@ export function TestInterface() {
     const [status, setStatus] = useState<string>(''); // For showing operation results
     const [playerColor, setPlayerColor] = useState<PlayerColor>("white");
 
-    const { status: matchmakingStatus, gameId: matchedGameId, color: matchedColor, error: matchmakingError, joinQueue, leaveQueue } = useMatchmaking();
-
-    // When we get a match, join the game
-    useEffect(() => {
-        const handleMatch = async () => {
-            if (matchedGameId) {
-                console.log('matchedGameId', matchedGameId);
-                try {
-                    setPlayerColor(matchedColor as PlayerColor);
-                    setGameID(matchedGameId);
-                } catch (err) {
-                    setError(err instanceof Error ? err.message : 'Failed to join matched game');
-                }
-            }
-        };
-
-        handleMatch();
-    }, [matchedGameId]);
-    
     async function handleCreateGame() {
         try {
             setStatus('Creating game...');
-            // First create the game
             const createData = await createGame();
-            console.log('createData', createData);
-            // Extract the game ID using the correct property name
             const newGameID = createData.game_id;
             if (!newGameID) {
                 throw new Error('No game ID received from server');
             }
-    
             setStatus(`Game created with ID: ${newGameID}`);
-    
-            // Then join it
             const joinData = await joinGame(newGameID);
-            console.log('joinData', joinData);
             setPlayerColor(joinData.color as PlayerColor);
             setStatus('Successfully created and joined game');
             setGameID(newGameID);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
             setStatus('Operation failed');
-            console.error('Error:', err);
         }
     }
 
@@ -62,96 +35,123 @@ export function TestInterface() {
         try {
             setStatus('Joining game...');
             const joinData = await joinGame(inputGameID);
-            console.log('joinData', joinData);
             setPlayerColor(joinData.color as PlayerColor);
             setStatus('Successfully joined game');
             setGameID(inputGameID);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
             setStatus('Operation failed');
-            console.error('Error:', err);
         }
     }
 
-    // If we're in a game, show the chess board
     if (gameID) {
         return (
             <div className="p-4">
-                <h1 className="text-2xl mb-4 text-white">Game ID: {gameID}</h1>
-                <ChessGame 
-                    gameId={gameID} 
-                    playerColor={playerColor} 
+                <h1 className="text-2xl mb-4 text-white border-2 border-yellow-500 rounded-md">Game ID: {gameID}</h1>
+                <ChessGame
+                    gameId={gameID}
+                    playerColor={playerColor}
                     handleLeaveGame={() => {
                         setGameID(null);
                         setStatus('');
-                    }} 
+                    }}
                 />
             </div>
         );
     }
-
     return (
-        <div className="p-4">
-            <h1 className="text-2xl mb-4 text-white">BombChess</h1>
-            
-            {(error || matchmakingError) && (
-                <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">
-                    Error: {error || matchmakingError}
-                </div>
-            )}
-            
-            {(status || matchmakingStatus === 'queued') && (
-                <div className="mb-4 p-4 bg-blue-100 text-blue-700 rounded">
-                    Status: {matchmakingStatus === 'queued' ? 'Waiting for opponent...' : status}
-                </div>
-            )}
-
-            <div className="mb-8">
-                <h2 className="text-xl mb-2 text-amber-600">Join Queue to Play with Random Opponent</h2>
-                {matchmakingStatus === 'queued' ? (
-                    <button 
-                        onClick={leaveQueue}
-                        className="px-4 py-2 bg-red-500 text-white rounded"
-                    >
-                        Leave Queue
-                    </button>
-                ) : (
-                    <button 
-                        onClick={joinQueue}
-                        className="px-4 py-2 bg-green-500 text-white rounded"
-                    >
-                        Join Queue
-                    </button>
-                )}
-            </div>
-
-            <div className="mb-8">
-                <h2 className="text-xl mb-2 text-amber-600">Create New Private Game</h2>
-                <button 
+        <div className="p-4 max-w-screen-lg mx-auto">
+            <h1 className="text-4xl md:text-6xl mb-4 text-white font-bold text-center">
+                MineChess
+            </h1>
+    
+            {/* Create New Private Game Section */}
+            <div className="mb-6 text-center">
+                <h2 className="text-lg md:text-2xl mb-3 text-amber-600">
+                    Create New Private Game
+                </h2>
+                <button
                     onClick={handleCreateGame}
-                    className="px-4 py-2 bg-green-500 text-white rounded"
+                    className="w-[40vw] max-w-xs px-[2.5vw] py-[1vw] bg-green-500 text-white rounded-md text-base md:text-lg hover:bg-green-600 transition"
                 >
                     Create New Game
                 </button>
             </div>
-
-            <div>
-                <h2 className="text-xl mb-2 text-amber-600">Join Private Game</h2>
-                <form onSubmit={handleJoinGame} className="space-y-4">
+    
+            {/* Join Private Game Section */}
+            <div className="mb-8 text-center">
+                <h2 className="text-lg md:text-2xl mb-3 text-amber-600">
+                    Join Private Game
+                </h2>
+                <form
+                    onSubmit={handleJoinGame}
+                    className="flex flex-col md:flex-row justify-center items-center gap-4"
+                >
                     <input
                         type="text"
                         value={inputGameID}
                         onChange={(e) => setInputGameID(e.target.value)}
                         placeholder="Enter Game ID"
-                        className="px-4 py-2 border rounded"
+                        style={{ color: 'white' }} 
+                        className="w-[40vw] max-w-xs px-[2.5vw] py-[1vw] border border-white-300 rounded-md text-sm md:text-base"
                     />
-                    <button 
+                    <button
                         type="submit"
-                        className="px-4 py-2 bg-blue-500 text-white rounded"
+                        className="w-[40vw] max-w-xs px-[2.5vw] py-[1vw] bg-blue-500 text-white rounded-md text-base md:text-lg hover:bg-blue-600 transition"
                     >
                         Join Game
                     </button>
                 </form>
+            </div>
+    
+            {/* MineChess Rules Section */}
+            <div className="mb-8 p-[4vw] bg-gray-700/75 text-white rounded-2xl shadow-lg">
+                <h2 className="text-lg md:text-2xl font-bold mb-4">
+                    MineChess Rules:
+                </h2>
+                <ol className="list-decimal list-inside space-y-3 text-sm md:text-base">
+                    <li>
+                        <strong>Standard Chess Rules Apply:</strong>
+                        <ul className="list-disc ml-6">
+                            <li>The pieces, board setup, and movement follow traditional chess rules.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Mine Placement:</strong>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li>After making a move, each player can place one hidden “mine” on any unoccupied square.</li>
+                            <li>Mines last for one turn (until the opponent’s next move is completed).</li>
+                            <li>Mines cannot be placed on squares where either king can concurrently move.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Mine Activation:</strong>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li>If a player moves a piece (except for pawns) onto a square containing a hidden mine, the piece is immediately removed from the game.</li>
+                            <li>Pawns are immune to mines and can move over mined squares without triggering them.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Mine Visibility:</strong>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li>Mines are hidden from the opponent until the subsequent turn.</li>
+                            <li>Opponents’ prior mine placements are marked with a crosshair icon.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Winning the Game:</strong>
+                        <ul className="list-disc ml-6 space-y-2">
+                            <li>The game can be won or drawn by traditional chess means: checkmate, stalemate, or time control.</li>
+                            <li>
+                                The game can also be won by “Bombmate,” a MineChess-specific mechanic where:
+                                <ol className="list-lower-alpha pl-8 space-y-1">
+                                    <li>A pinned piece moves onto a mined square.</li>
+                                    <li>A piece blocks a check on a mined square.</li>
+                                </ol>
+                            </li>
+                        </ul>
+                    </li>
+                </ol>
             </div>
         </div>
     );

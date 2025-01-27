@@ -14,7 +14,7 @@ const PlayerCard: React.FC<{
     const isActive = !resolve && timeLeft > 0 && toMove === player.color && moveHistory.length !== 0;
 
     return orientation === "top" ? (
-        <div className="flex-col w-full border-2 border-neutral-500 grid grid-rows-2">
+        <div className="flex-col w-full grid grid-rows-2">
             <div className="row-span-1 font-bold text-white w-full text-center">{player.color || "waiting for opponent..."}</div>
             <Clock 
                 initialTime={timeLeft}
@@ -28,7 +28,7 @@ const PlayerCard: React.FC<{
             />
         </div>
     ) : (
-        <div className="flex-col w-full border-2 border-neutral-500 grid grid-rows-2">
+        <div className="flex-col w-full grid grid-rows-2">
             <Clock 
                 initialTime={timeLeft}
                 isRunning={isActive}
