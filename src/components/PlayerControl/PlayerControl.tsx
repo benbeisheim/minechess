@@ -13,8 +13,6 @@ interface PlayerControlProps {
 }
 
 const PlayerControl: React.FC<PlayerControlProps> = ({
-    onResign,
-    onDrawOffer,
     onLeaveGame,
     onChangeColor,
 }) => {

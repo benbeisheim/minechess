@@ -1,5 +1,5 @@
 // src/components/TestInterface.tsx
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import ChessGame from '../ChessGame/ChessGame';
 import { PlayerColor } from '../../types/chess';
 import { createGame, joinGame } from '../../services/api';
@@ -7,40 +7,31 @@ import { createGame, joinGame } from '../../services/api';
 export function TestInterface() {
     const [gameID, setGameID] = useState<string | null>(null);
     const [inputGameID, setInputGameID] = useState('');
-    const [error, setError] = useState<string | null>(null);
-    const [status, setStatus] = useState<string>(''); // For showing operation results
     const [playerColor, setPlayerColor] = useState<PlayerColor>("white");
 
     async function handleCreateGame() {
         try {
-            setStatus('Creating game...');
             const createData = await createGame();
             const newGameID = createData.game_id;
             if (!newGameID) {
                 throw new Error('No game ID received from server');
             }
-            setStatus(`Game created with ID: ${newGameID}`);
             const joinData = await joinGame(newGameID);
             setPlayerColor(joinData.color as PlayerColor);
-            setStatus('Successfully created and joined game');
             setGameID(newGameID);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
-            setStatus('Operation failed');
+            console.error(err);
         }
     }
 
     async function handleJoinGame(e: React.FormEvent) {
         e.preventDefault();
         try {
-            setStatus('Joining game...');
             const joinData = await joinGame(inputGameID);
             setPlayerColor(joinData.color as PlayerColor);
-            setStatus('Successfully joined game');
             setGameID(inputGameID);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
-            setStatus('Operation failed');
+            console.error(err);
         }
     }
 
@@ -53,7 +44,6 @@ export function TestInterface() {
                     playerColor={playerColor}
                     handleLeaveGame={() => {
                         setGameID(null);
-                        setStatus('');
                     }}
                 />
             </div>
