@@ -50,7 +50,7 @@ export function TestInterface() {
         );
     }
     return (
-        <div className="">
+        <div className="h-full">
             <h1 className="text-4xl md:text-6xl mb-4 text-white font-bold text-center">
                 MineChess
             </h1>
@@ -111,7 +111,7 @@ export function TestInterface() {
                         <ul className="list-disc ml-6 space-y-2">
                             <li>After making a move, each player can place one hidden “mine” on any unoccupied square.</li>
                             <li>Mines last for one turn (until the opponent’s next move is completed).</li>
-                            <li>Mines cannot be placed on squares where either king can concurrently move.</li>
+                            <li>Mines cannot be placed on squares where either king can currently move.</li>
                         </ul>
                     </li>
                     <li>
@@ -135,8 +135,8 @@ export function TestInterface() {
                             <li>
                                 The game can also be won by “Bombmate,” a MineChess-specific mechanic where:
                                 <ol className="list-lower-alpha pl-8 space-y-1">
-                                    <li>A pinned piece moves onto a mined square.</li>
-                                    <li>A piece blocks a check on a mined square.</li>
+                                    <li>a. A pinned piece moves onto a mined square.</li>
+                                    <li>b. A piece blocks a check on a mined square.</li>
                                 </ol>
                             </li>
                         </ul>
