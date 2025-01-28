@@ -3,6 +3,7 @@ import { useState } from 'react';
 import ChessGame from '../ChessGame/ChessGame';
 import { PlayerColor } from '../../types/chess';
 import { createGame, joinGame } from '../../services/api';
+import Bombman from '../../components/Bombman/Bombman';
 
 export function TestInterface() {
     const [gameID, setGameID] = useState<string | null>(null);
@@ -51,10 +52,15 @@ export function TestInterface() {
     }
     return (
         <div className="h-full">
-            <h1 className="text-4xl md:text-6xl mb-4 text-white font-bold text-center">
+            {/* Bombman Animation Layer */}
+            <div className="absolute top-30 right-0 w-60 h-60 -z-10" >
+                <div className="transform -translate-y-1/2 w-[150px] sm:w-[200px] lg:w-[260px] h-auto z-0 animate-walk-across">
+                    <Bombman />
+                </div>
+            </div>
+            <h1 className="mt-5 text-4xl md:text-6xl mb-4 text-white font-bold text-center">
                 MineChess
             </h1>
-    
             {/* Create New Private Game Section */}
             <div className="mb-6 text-center">
                 <h2 className="text-lg md:text-2xl mb-3 text-amber-600">
@@ -67,7 +73,7 @@ export function TestInterface() {
                     Create New Game
                 </button>
             </div>
-    
+
             {/* Join Private Game Section */}
             <div className="mb-8 text-center">
                 <h2 className="text-lg md:text-2xl mb-3 text-amber-600">
