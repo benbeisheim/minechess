@@ -5,7 +5,9 @@ import { createSelector } from '@reduxjs/toolkit';
 const selectBoardState = (state: RootState) => ({
     board: state.game.boardState.board,
     whiteKingPosition: state.game.boardState.whiteKingPosition,
-    blackKingPosition: state.game.boardState.blackKingPosition
+    blackKingPosition: state.game.boardState.blackKingPosition,
+    blackKingAttackedSquares: state.game.blackKingAttackedSquares,
+    whiteKingAttackedSquares: state.game.whiteKingAttackedSquares
 });
 
 const selectGameFlow = (state: RootState) => ({

@@ -146,31 +146,45 @@ export function isNoLegalMoves(gameState: GameState) : boolean {
     return legalMoves.length === 0;
 }
 
-export function makeTemporaryMove(board: (PieceData | null) [][], temporaryMove: TemporaryMove) : (PieceData | null) [][] {
+export function makeTemporaryMove(gameState: GameState, temporaryMove: TemporaryMove) : GameState {
     console.log("temporaryMove making", temporaryMove);
-    board[temporaryMove.to.position.y][temporaryMove.to.position.x] = board[temporaryMove.from.position.y][temporaryMove.from.position.x];
-    board[temporaryMove.from.position.y][temporaryMove.from.position.x] = null;
+    gameState.boardState.board[temporaryMove.to.position.y][temporaryMove.to.position.x] = gameState.boardState.board[temporaryMove.from.position.y][temporaryMove.from.position.x];
+    gameState.boardState.board[temporaryMove.from.position.y][temporaryMove.from.position.x] = null;
     if (temporaryMove.rookMove) {
-        board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x] = board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x];
-        board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x] = null;
+        gameState.boardState.board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x] = gameState.boardState.board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x];
+        gameState.boardState.board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x] = null;
     }
     if (temporaryMove.enPassant) {
-        board[temporaryMove.enPassant.position.y][temporaryMove.enPassant.position.x] = null;
+        gameState.boardState.board[temporaryMove.enPassant.position.y][temporaryMove.enPassant.position.x] = null;
     }
-    return board;
+    if (temporaryMove.from.piece?.type === 'king') {
+        if (temporaryMove.from.piece?.color === 'white') {
+            gameState.whiteKingAttackedSquares = updateKingAttackedSquares(temporaryMove.to.position);
+        } else {
+            gameState.blackKingAttackedSquares = updateKingAttackedSquares(temporaryMove.to.position);
+        }
+    }
+    return gameState;
 }
 
-export function undoTemporaryMove(board: (PieceData | null) [][], temporaryMove: TemporaryMove) : (PieceData | null) [][] {
-    board[temporaryMove.from.position.y][temporaryMove.from.position.x] = temporaryMove.from.piece;
-    board[temporaryMove.to.position.y][temporaryMove.to.position.x] = temporaryMove.to.piece;
+export function undoTemporaryMove(gameState: GameState, temporaryMove: TemporaryMove) : GameState {
+    gameState.boardState.board[temporaryMove.from.position.y][temporaryMove.from.position.x] = temporaryMove.from.piece;
+    gameState.boardState.board[temporaryMove.to.position.y][temporaryMove.to.position.x] = temporaryMove.to.piece;
     if (temporaryMove.rookMove) {
-        board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x] = board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x];
-        board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x] = null;
+        gameState.boardState.board[temporaryMove.rookMove.from.y][temporaryMove.rookMove.from.x] = gameState.boardState.board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x];
+        gameState.boardState.board[temporaryMove.rookMove.to.y][temporaryMove.rookMove.to.x] = null;
     }
     if (temporaryMove.enPassant) {
-        board[temporaryMove.enPassant.position.y][temporaryMove.enPassant.position.x] = temporaryMove.enPassant.piece;
+        gameState.boardState.board[temporaryMove.enPassant.position.y][temporaryMove.enPassant.position.x] = temporaryMove.enPassant.piece;
     }
-    return board;
+    if (temporaryMove.from.piece?.type === 'king') {
+        if (temporaryMove.from.piece?.color === 'white') {
+            gameState.whiteKingAttackedSquares = updateKingAttackedSquares(temporaryMove.from.position);
+        } else {
+            gameState.blackKingAttackedSquares = updateKingAttackedSquares(temporaryMove.from.position);
+        }
+    }
+    return gameState;
 }
 
 export function makeTemporaryPromotionMove(board: (PieceData | null) [][], temporaryMove: {from: {position: Position, piece: PieceData | null}, to: {position: Position, piece: PieceData | null}}, promotionPiece: PieceType) : (PieceData | null) [][] {
@@ -182,4 +196,16 @@ export function makeTemporaryPromotionMove(board: (PieceData | null) [][], tempo
     };
     board[temporaryMove.from.position.y][temporaryMove.from.position.x] = null;
     return board;
+}
+
+export function updateKingAttackedSquares(pos: Position) : Position[] {
+    const kingDirs = [{x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1}, {x: 1, y: 1}, {x: 1, y: -1}, {x: -1, y: 1}, {x: -1, y: -1}];
+    const attackedSquares = [];
+    for (const dir of kingDirs) {
+        const targetPos = {x: pos.x + dir.x, y: pos.y + dir.y};
+        if (boundaryCheck(targetPos)) {
+            attackedSquares.push(targetPos);
+        }
+    }
+    return attackedSquares;
 }

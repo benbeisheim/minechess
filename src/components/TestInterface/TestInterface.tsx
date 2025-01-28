@@ -50,7 +50,7 @@ export function TestInterface() {
         );
     }
     return (
-        <div className="p-4 max-w-screen-lg mx-auto">
+        <div className="">
             <h1 className="text-4xl md:text-6xl mb-4 text-white font-bold text-center">
                 MineChess
             </h1>

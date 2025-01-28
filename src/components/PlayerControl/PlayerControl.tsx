@@ -23,11 +23,11 @@ const PlayerControl: React.FC<PlayerControlProps> = ({
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     const colorDropMap: Record<string, [ string, string]> = {
-        Amber: ["text-amber-700", "bg-amber-500"],
-        Gray: ["text-gray-300", "bg-gray-500"],
-        Blue: ["text-cyan-500", "bg-cyan-500"],
-        Green: ["text-lime-500", "bg-lime-500"],
-        Purple: ["text-fuchsia-500", "bg-fuchsia-500"],
+        amber: ["text-amber-700", "bg-amber-500"],
+        gray: ["text-gray-300", "bg-gray-500"],
+        blue: ["text-cyan-500", "bg-cyan-500"],
+        green: ["text-lime-500", "bg-lime-500"],
+        purple: ["text-fuchsia-500", "bg-fuchsia-500"],
     };
     const handleColorChange = (selectedColor: string) => {
         console.log("handling color change", selectedColor);

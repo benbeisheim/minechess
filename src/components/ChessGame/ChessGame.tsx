@@ -23,14 +23,18 @@ const selectGameState = createSelector(
     (state: RootState) => state.game.promotionPiece,
     (state: RootState) => state.game.legalMoves,
     (state: RootState) => state.game.resolve,
-    (board, players, selectedSquare, temporaryMove, promotionPiece, legalMoves, resolve) => ({
+    (state: RootState) => state.game.blackKingAttackedSquares,
+    (state: RootState) => state.game.whiteKingAttackedSquares,
+    (board, players, selectedSquare, temporaryMove, promotionPiece, legalMoves, resolve, blackKingAttackedSquares, whiteKingAttackedSquares) => ({
         board,
         players,
         selectedSquare,
         temporaryMove,
         promotionPiece,
         legalMoves,
-        resolve
+        resolve,
+        blackKingAttackedSquares,
+        whiteKingAttackedSquares
     })
 );
 
@@ -64,7 +68,9 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
         }
         
         // If this click would result in a move, send it to the server
-        if (temporaryMove && gameState.board[position.y][position.x] === null) {
+        if (temporaryMove && gameState.board[position.y][position.x] === null && 
+            !gameState.blackKingAttackedSquares.some(square => square.x === position.x && 
+                square.y === position.y) && !gameState.whiteKingAttackedSquares.some(square => square.x === position.x && square.y === position.y)) {
             console.log("Sending move--------", temporaryMove, promotionPiece, position);
             if (promotionPiece) {
                 gameSocket.current?.sendMove({

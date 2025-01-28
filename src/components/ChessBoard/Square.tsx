@@ -52,18 +52,22 @@ const Square: React.FC<SquareProps> = ({
             (state: RootState) => state.game.explosion,
             (state: RootState) => state.game.lastMine,
             (state: RootState) => state.game.toMove,
-            (piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion, lastMine, toMove) => ({piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion, lastMine, toMove})
+            (state: RootState) => state.game.blackKingAttackedSquares,
+            (state: RootState) => state.game.whiteKingAttackedSquares,
+            (piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion, lastMine, toMove, 
+                blackKingAttackedSquares, whiteKingAttackedSquares) => 
+                    ({piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion, lastMine, toMove, blackKingAttackedSquares, whiteKingAttackedSquares})
         )
     );
 
     const isPromotionSquare = squareState.promotionSquare && squareState.promotionSquare.x === position.x && squareState.promotionSquare.y === position.y;
     // Make the color classes more specific to ensure they apply
     const colorMap: Record<string, [string, string]> = {
-        Amber: ["bg-amber-100", "bg-amber-700"],
-        Gray: ["bg-gray-100", "bg-gray-600"],
-        Blue: ["bg-cyan-100", "bg-cyan-700"],
-        Green: ["bg-lime-100", "bg-lime-700"],
-        Purple: ["bg-fuchsia-100", "bg-fuchsia-700"],
+        amber: ["bg-amber-100", "bg-amber-700"],
+        gray: ["bg-gray-100", "bg-gray-600"],
+        blue: ["bg-cyan-100", "bg-cyan-700"],
+        green: ["bg-lime-100", "bg-lime-700"],
+        purple: ["bg-fuchsia-100", "bg-fuchsia-700"],
     };
 
     const baseColor = colorMap[boardColor]
@@ -96,8 +100,16 @@ const Square: React.FC<SquareProps> = ({
             onMouseOver={() => {setIsHovered(true)}}
             onMouseLeave={() => {setIsHovered(false)}}
         >
-            {isHighlighted && <SquareHighlight size={squareSize} isPiece={piece !== null} isLight={isLight} isTemporaryMove={false} isLastMine={false} />}
-            {isHovered && squareState.temporaryMove && !piece  &&
+            {isHighlighted && <SquareHighlight 
+                size={squareSize} 
+                isPiece={piece !== null} 
+                isLight={isLight} 
+                isTemporaryMove={false} 
+                isLastMine={false} 
+                />}
+            {isHovered && squareState.temporaryMove && !piece  && 
+            !squareState.blackKingAttackedSquares.some(square => square.x === position.x && square.y === position.y) && 
+            !squareState.whiteKingAttackedSquares.some(square => square.x === position.x && square.y === position.y) &&
             <SquareHighlight size={squareSize} isPiece={false} isLight={isLight} isTemporaryMove={true} isLastMine={false} />}
             {!isPromotionSquare && piece && (
                 <Piece 

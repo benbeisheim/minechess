@@ -64,6 +64,8 @@ export interface GameState {
         to: Position;
     } | null;
     explosion: Position | null;
+    blackKingAttackedSquares: Position[];
+    whiteKingAttackedSquares: Position[];
 }
 
 export interface TemporaryMove {

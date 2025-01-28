@@ -38,7 +38,9 @@ const initialState: GameState = {
     promotionPiece: null,
     temporaryMove: null,
     lastMove: null,
-    explosion: null
+    explosion: null,
+    blackKingAttackedSquares: [],
+    whiteKingAttackedSquares: []
 };
 
 // Create the slice
@@ -65,7 +67,7 @@ const gameSlice = createSlice({
             if (piece?.color === playerColor) {
                 // Select the piece and calculate legal moves
                 if (state.temporaryMove) {
-                    state.boardState.board = undoTemporaryMove(state.boardState.board, state.temporaryMove);
+                    state = undoTemporaryMove(state, state.temporaryMove);
                     state.temporaryMove = null;
                 }
                 state.selectedSquare = position;
@@ -107,9 +109,13 @@ const gameSlice = createSlice({
                                 piece: state.boardState.board[state.temporaryMove.to.position.y + (state.toMove === 'white' ? 1 : -1)][state.temporaryMove.to.position.x]
                             };
                         }
-                        state.boardState.board = makeTemporaryMove(state.boardState.board, state.temporaryMove);
+                        state = makeTemporaryMove(state, state.temporaryMove);
                         state.selectedSquare = null;
-                        state.temporaryMove.to.piece ? soundManager.play('capture') : soundManager.play('move');
+                        if (state.temporaryMove?.to.piece) {
+                            soundManager.play('capture');
+                        } else {
+                            soundManager.play('move');
+                        }
                     } else {
                         // Invalid move square - just clear selection
                         state.selectedSquare = null;
@@ -118,8 +124,10 @@ const gameSlice = createSlice({
                     }
                 } else {
                     // If a pending move destination is set, we're waiting for mine placement
-                    if (state.boardState.board[position.y][position.x]) {
-                        // If the square is occupied, clear selection
+                    if (state.boardState.board[position.y][position.x] || 
+                        state.blackKingAttackedSquares.some(square => square.x === position.x && square.y === position.y) || 
+                        state.whiteKingAttackedSquares.some(square => square.x === position.x && square.y === position.y)) {
+                        // If the square is occupied, or attacked by one of the kings, clear selection
                         state.selectedSquare = null;
                         state.legalMoves = [];
                         state.promotionSquare = null;
