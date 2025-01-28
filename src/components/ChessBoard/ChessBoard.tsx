@@ -145,6 +145,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
             />
         );
     };
+    //dumb 
 
     return (
         <div ref={containerRef}>
