@@ -9,7 +9,7 @@ export const landMines = {
 }
 
 export function getLandMine() {
-    return landMines.realBomb;
+    return landMines.bomb;
 }
 
 export function getBomb() {
