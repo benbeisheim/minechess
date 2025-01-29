@@ -1,5 +1,5 @@
 import Lottie, { LottieRefCurrentProps } from 'lottie-react';
-import explosionAnimation from '../../assets/animations/bwexplosion.json';
+import explosionAnimation from '../../assets/animations/explosion.json';
 import { Position } from '../../types/chess';
 import { useEffect, useRef, useState } from 'react';
 

@@ -76,6 +76,7 @@ const Square: React.FC<SquareProps> = ({
             : colorMap[boardColor][1]
         : isLight
     
+
     // Determine if this square should show labels
     const shouldShowFileLabel = orientation === 'white' ? position.y === 7 : position.y === 0;
     const shouldShowRankLabel = orientation === 'white' ? position.x === 0 : position.x === 7;
@@ -85,6 +86,7 @@ const Square: React.FC<SquareProps> = ({
 
     const [isHovered, setIsHovered] = useState(false);
 
+    
     return (
         <div 
             className={`${baseColor}
@@ -130,14 +132,14 @@ const Square: React.FC<SquareProps> = ({
                     className={"absolute bottom-1 right-1 georgia " + (isLight ? "text-amber-800" : "text-amber-100")} 
                     style={{ fontSize: `${labelSize}px`}}
                 >
-                    {notation[0]} {/* First character of notation is file */}
+                    {notation[0]} {/* First character of notation is file   */}
                 </div>
             )}
             {squareState.mine && squareState.mine.x === position.x && squareState.mine.y === position.y && (
                 <img src={getLandMine()} alt="Land Mine" className="w-[70%] h-[70%] z-10" />
             )}
             {squareState.explosion && squareState.explosion.x === position.x && squareState.explosion.y === position.y && (
-                <ExplosionEffect position={position} size = {squareSize} />
+                <ExplosionEffect position={position} size={squareSize}/>
             )}
             {shouldShowRankLabel && (
                 <div 
