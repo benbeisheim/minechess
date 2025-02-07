@@ -30,7 +30,7 @@ const MoveList: React.FC = () => {
 
     return (
         // Single flex container that grows and handles overflow
-        <div className="h-full flex flex-col bg-darkest-gray">
+        <div className="h-full w-full flex flex-col bg-darkest-gray">
             <div className="shrink-0">
                 <table className="w-full">
                     <thead>
@@ -43,7 +43,7 @@ const MoveList: React.FC = () => {
                 </table>
             </div>
             {/* Direct scrollable container */}
-            <div className="flex-grow overflow-y-auto" ref={scrollRef}>
+            <div className="flex-grow overflow-y-auto w-full" ref={scrollRef}>
                 <table className="w-full">
                     <tbody>
                         {renderMoveHistory()}
