@@ -14,7 +14,7 @@ const PlayerCard: React.FC<{
     const timeLeft = player.timeLeft;
     const isActive = !resolve && timeLeft > 0 && toMove === player.color && moveHistory.length !== 0;
 
-    // ✅ Show only the opponent’s pieces that the current player has captured
+    //  Show only the opponent’s pieces that the current player has captured
     const playerCapturedPieces: PieceData[] =
         player.color === "white" ? capturedPieces.black : capturedPieces.white;
 
@@ -23,7 +23,7 @@ const PlayerCard: React.FC<{
     return (
         <div className="flex-col w-full grid grid-rows-3 justify-center items-center">
             {orientation === "top" && (
-                <div className="row-span-1 font-bold text-white w-full text-center">
+                <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center">
                     {player.color || "waiting for opponent..."}
                 </div>
             )}
@@ -41,14 +41,14 @@ const PlayerCard: React.FC<{
                 }}
             />
 
-            {/* ✅ Show only the opponent’s captured pieces */}
+            {/*  Show only the opponent’s captured pieces 
             <Graveyard capturedPieces={playerCapturedPieces} />
 
             {orientation === "bottom" && (
-                <div className="row-span-1 font-bold text-white w-full text-center">
+                <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center">
                     {player.color || "waiting for opponent..."}
                 </div>
-            )}
+            )}*/}
         </div>
     );
 };
