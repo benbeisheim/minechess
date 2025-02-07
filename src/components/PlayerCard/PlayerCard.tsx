@@ -40,14 +40,11 @@ const PlayerCard: React.FC<{
                 }}
             />
 
-            {/*  Show only the opponent’s captured pieces  
-            <Graveyard capturedPieces={playerCapturedPieces} />
-
             {orientation === "bottom" && (
                 <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center">
                     {player.color || "waiting for opponent..."}
                 </div>
-            )}*/}
+            )}
         </div>
     );
 };
