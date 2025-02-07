@@ -78,7 +78,7 @@ const Clock: React.FC<{
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${deciseconds}`;
     };
 
-    return <div className="font-mono text-2xl font-bold text-white text-center">{formatTime(displayTime)}</div>;
+    return <div className="font-mono text-2xl font-semibold text-gray-800 dark:text-white text-center">{formatTime(displayTime)}</div>;
 };
 
 export default Clock;

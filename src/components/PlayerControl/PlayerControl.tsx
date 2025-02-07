@@ -37,15 +37,15 @@ const PlayerControl: React.FC<PlayerControlProps> = ({
     };
 
     return (
-        <div className="grid grid-rows-10 h-full border-2 border-white rounded-md">
+        <div className="grid grid-rows-10 h-full border-2 border-gray-800 dark:border-white rounded-md">
             {/* Top section: Resolve and "To Move" */}
-            <div className="row-span-1 flex justify-center font-bold items-center ">
+            <div className="pt-4 row-span-1 flex justify-center font-bold items-center ">
                 <Resolve resolve={resolve} toMove={toMove} />
             </div>
 
             {/* Dropdown for board color selection */}
             <div className="row-span-1 flex justify-center items-center">
-                <label className="mr-2 text-white">Board Color:</label>
+                <label className="mr-1 text-sm text-gray-800 dark:text-white">Board Color:</label>
                 <div className="relative">
                     <button
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -69,17 +69,17 @@ const PlayerControl: React.FC<PlayerControlProps> = ({
                 </div>
             </div>
             {/* Opponent player card */}
-            <div className="row-span-1 border-l-0 border-r-0 border-t-2 border-b-2 border-white">
+            <div className="flex row-span-2 border-l-0 border-r-0 border-t-2 border-b-2 border-gray-800 dark:border-white">
                 <PlayerCard player={players[playerColor === "white" ? "black" : "white"]} orientation="top" />
             </div>
 
             {/* MoveList */}
-            <div className="row-span-4">
+            <div className="flex row-span-3">
                 <MoveList />
             </div>
 
             {/* Player's own card */}
-            <div className="row-span-1 border-l-0 border-r-0 border-t-2 border-b-2 border-white">
+            <div className="flex row-span-2 border-l-0 border-r-0 border-t-2 border-b-2 border-gray-800 dark:border-white">
                 <PlayerCard player={players[playerColor]} orientation="bottom" />
             </div>
 

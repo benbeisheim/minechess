@@ -39,7 +39,7 @@ export function TestInterface() {
     if (gameID) {
         return (
             <div className="p-4">
-                <h1 className="text-2xl mb-4 text-white border-2 border-yellow-500 rounded-md">Game ID: {gameID}</h1>
+                <h1 className="text-2xl mb-4 text-gray-800 dark:text-white border-2 border-yellow-500 rounded-md">Game ID: {gameID}</h1>
                 <ChessGame
                     gameId={gameID}
                     playerColor={playerColor}
@@ -58,7 +58,7 @@ export function TestInterface() {
                     <Bombman />
                 </div>
             </div>
-            <h1 className="mt-5 text-4xl md:text-6xl mb-4 text-white font-bold text-center">
+            <h1 className="mt-5 text-4xl md:text-6xl mb-4 font-bold text-center text-gray-800 dark:text-white">
                 MineChess
             </h1>
             {/* Create New Private Game Section */}

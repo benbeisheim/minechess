@@ -11,7 +11,7 @@ interface ExplosionProps {
 
 const ExplosionEffect: React.FC<ExplosionProps> = ({ 
     onComplete = () => {},
-    size = 64  // Default to your square size
+    size = 64  // Default to your square size?
 }) => {
     const [isVisible, setIsVisible] = useState(true);
     const lottieRef = useRef<LottieRefCurrentProps>(null);

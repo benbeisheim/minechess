@@ -17,7 +17,7 @@ export const SquareHighlight: React.FC<SquareHighlightProps> = ({ size, isPiece,
                 className="absolute inset-0 flex items-center justify-center"
                 style={{ width: `${size}px`, height: `${size}px` }}
             >
-                <img src={getTargetCross()} alt="Target Cross" className="w-[100%] h-[100%] opacity-60" />
+                <img src={getTargetCross()} alt="Target Cross" className="w-[100%] h-[100%] opacity-1" />
             </div>
         )
     }
