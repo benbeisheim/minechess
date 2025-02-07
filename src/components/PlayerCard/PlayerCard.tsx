@@ -20,7 +20,7 @@ const PlayerCard: React.FC<{
     console.log(`Captured pieces for ${player.color}:`, playerCapturedPieces); // Debugging
 
     return (
-        <div className="flex-col w-full grid grid-rows-3 justify-center items-center">
+        <div className="flex-col w-full grid grid-rows-2 justify-center items-center">
             {orientation === "top" && (
                 <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center">
                     {player.color || "waiting for opponent..."}
