@@ -41,7 +41,7 @@ const PlayerCard: React.FC<{
                 }}
             />
 
-            {/*  Show only the opponent’s captured pieces 
+            {/*  Show only the opponent’s captured pieces  
             <Graveyard capturedPieces={playerCapturedPieces} />
 
             {orientation === "bottom" && (
