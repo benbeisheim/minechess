@@ -3,7 +3,6 @@ import { updateClock } from "../../store/gameSlice";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { Player, PieceData } from "../../types/chess";
 import Clock from "../Clock/Clock";
-import Graveyard from "../PlayerControl/Graveyard"; // Import Graveyard
 
 const PlayerCard: React.FC<{
     player: Player;
