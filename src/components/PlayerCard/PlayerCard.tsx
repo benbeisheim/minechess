@@ -3,6 +3,8 @@ import { updateClock } from "../../store/gameSlice";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { Player, PieceData } from "../../types/chess";
 import Clock from "../Clock/Clock";
+import Graveyard from "../PlayerControl/Graveyard";
+import MaterialCount from "../PlayerControl/MaterialCount";
 
 const PlayerCard: React.FC<{
     player: Player;
@@ -15,18 +17,30 @@ const PlayerCard: React.FC<{
 
     //  Show only the opponent’s pieces that the current player has captured
     const playerCapturedPieces: PieceData[] =
-        player.color === "white" ? capturedPieces.black : capturedPieces.white;
+        player.color === "white" ? capturedPieces.white : capturedPieces.black;
 
     console.log(`Captured pieces for ${player.color}:`, playerCapturedPieces); // Debugging
 
     return (
         <div className="flex-col w-full grid grid-rows-2 justify-center items-center">
-            {orientation === "top" && (
+            {/* {orientation === "top" && (
                 <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center">
                     {player.color || "waiting for opponent..."}
+                </div> */}
+            {/* Opponent Player Name + Material Count */}
+            {/* Opponent Player Name + Material Count */}
+            {orientation === "top" && (
+                <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center flex items-center justify-center space-x-2">
+                    <span>{player.color || "waiting for opponent..."}</span>
+                    <MaterialCount
+                        capturedPieces={capturedPieces.white.concat(capturedPieces.black)}
+                        playerColor={player.color} // 🔥 Pass the player's color
+                    />
                 </div>
             )}
-
+            {orientation === "bottom" && (
+                <Graveyard capturedPieces={playerCapturedPieces}/>
+            )}
             <Clock
                 initialTime={timeLeft}
                 isRunning={isActive}
@@ -40,10 +54,22 @@ const PlayerCard: React.FC<{
                 }}
             />
 
-            {orientation === "bottom" && (
+            {/* {orientation === "bottom" && (
                 <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center">
                     {player.color || "waiting for opponent..."}
+                </div> */}
+            {/* Player Name + Material Count */}
+            {orientation === "bottom" && (
+                <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center flex items-center justify-center space-x-2">
+                    <span>{player.color || "waiting for opponent..."}</span>
+                    <MaterialCount
+                        capturedPieces={capturedPieces.white.concat(capturedPieces.black)}
+                        playerColor={player.color}
+                    />
                 </div>
+            )}
+            {orientation === "top" && (
+                <Graveyard capturedPieces={playerCapturedPieces}/>
             )}
         </div>
     );
