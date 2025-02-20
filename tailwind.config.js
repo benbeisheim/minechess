@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "media",
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -7,8 +8,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        'darker-gray': '#1a1a1a',
-        'darkest-gray': '#141414',  
+        'darker-gray': '#242424',
+        'darkest-gray': '#141414',
+        'pearl': '#F5F5DC',
       },
       keyframes: {
         'walk-across': {

@@ -5,7 +5,7 @@ interface GraveyardProps {
     capturedPieces: PieceData[];
 }
 
-// ✅ Mapping piece types to Unicode chess characters
+// Mapping piece types to Unicode chess characters
 const pieceIcons: Record<string, { white: string; black: string }> = {
     pawn: { white: "♟", black: "♙" },
     knight: { white: "♞", black: "♘" },
@@ -39,7 +39,7 @@ const Graveyard: React.FC<GraveyardProps> = ({ capturedPieces }) => {
     const groupedPieces = groupCapturedPieces(capturedPieces);
 
     return (
-        <div className="graveyard flex flex-wrap space-x-1 items-center dark:text-white">
+        <div className="graveyard flex flex-wrap space-x-1 justify-center dark:text-white">
             {capturedPieces.length > 0 ? (
                 Object.entries(groupedPieces).map(([type, { icon, count }]) =>
                     count > 0 ? (
@@ -47,7 +47,7 @@ const Graveyard: React.FC<GraveyardProps> = ({ capturedPieces }) => {
                             {type === "pawn" && count > 1 ? (
                                 <>
                                     <span className="text-2xl">{icon}</span>
-                                    <span className="text-sm text-gray-400">x{count}</span>
+                                    <span className="text-sm dark:text-white">x{count}</span>
                                 </>
                             ) : (
                                 // Display multiple icons for other pieces

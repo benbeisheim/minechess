@@ -22,19 +22,15 @@ const PlayerCard: React.FC<{
     console.log(`Captured pieces for ${player.color}:`, playerCapturedPieces); // Debugging
 
     return (
-        <div className="flex-col w-full grid grid-rows-2 justify-center items-center">
-            {/* {orientation === "top" && (
-                <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center">
-                    {player.color || "waiting for opponent..."}
-                </div> */}
-            {/* Opponent Player Name + Material Count */}
+        <div className="flex-col w-full grid grid-rows-3 justify-center items-center">
+
             {/* Opponent Player Name + Material Count */}
             {orientation === "top" && (
                 <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center flex items-center justify-center space-x-2">
-                    <span>{player.color || "waiting for opponent..."}</span>
+                    <span className="">{player.color || "waiting for opponent..."}</span>
                     <MaterialCount
-                        capturedPieces={capturedPieces.white.concat(capturedPieces.black)}
-                        playerColor={player.color} // 🔥 Pass the player's color
+                    
+                        playerColor={player.color} // Pass the player's color
                     />
                 </div>
             )}
@@ -54,16 +50,12 @@ const PlayerCard: React.FC<{
                 }}
             />
 
-            {/* {orientation === "bottom" && (
-                <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center">
-                    {player.color || "waiting for opponent..."}
-                </div> */}
             {/* Player Name + Material Count */}
             {orientation === "bottom" && (
                 <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center flex items-center justify-center space-x-2">
                     <span>{player.color || "waiting for opponent..."}</span>
                     <MaterialCount
-                        capturedPieces={capturedPieces.white.concat(capturedPieces.black)}
+                    
                         playerColor={player.color}
                     />
                 </div>

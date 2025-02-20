@@ -9,7 +9,7 @@ interface PromotionChoiceProps {
 const PromotionChoice: React.FC<PromotionChoiceProps> = ({handlePromotionClick, orientation}) => {
     const color = orientation === 'white' ? 'white' : 'black';
     return (
-        <div className="w-full h-full grid grid-cols-2 grid-rows-2">
+        <div className="w-full h-full grid grid-cols-2 grid-rows-2 z-0">
             <img className="w-full h-full" src={getPieceImage(color, 'queen')} onClick={() => handlePromotionClick('queen')}/>
             <img className="w-full h-full" src={getPieceImage(color, 'rook')} onClick={() => handlePromotionClick('rook')}/>
             <img className="w-full h-full" src={getPieceImage(color, 'bishop')} onClick={() => handlePromotionClick('bishop')}/>

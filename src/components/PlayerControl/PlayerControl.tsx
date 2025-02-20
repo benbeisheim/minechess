@@ -49,7 +49,7 @@ const PlayerControl: React.FC<PlayerControlProps> = ({
                 <div className="relative">
                     <button
                         onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className= {`p-1 rounded ${colorDropMap[color][1]} text-white hover:border-2 hover:border-white`} 
+                        className= {`p-1 rounded ${colorDropMap[color][1]} text-white hover:border-2`} 
                     >
                         {color} &darr;
                     </button>
@@ -59,10 +59,10 @@ const PlayerControl: React.FC<PlayerControlProps> = ({
                                 <li
                                     key={colorDropMap[color][0]}
                                     onClick={() => handleColorChange(color)}
-                                    className={`p-2 cursor-pointer hover:${colorDropMap[color][1]} hover:text-white ${colorDropMap[color][0]}`}
+                                    className={`p-2 cursor-pointer hover:bg-${colorDropMap[color][1]} hover:text-white ${colorDropMap[color][0]}`}
                                 >
                                     {color}
-                                </li>
+                                </li> 
                             ))}
                         </ul>
                     )}

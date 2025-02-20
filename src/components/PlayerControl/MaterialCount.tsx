@@ -1,10 +1,6 @@
-import React from 'react';
-import { PieceData } from '../../types/chess.ts';
-
-interface MaterialCountProps {
-    capturedPieces: PieceData[];
-    playerColor: "white" | "black"; // 🔥 Add playerColor prop
-}
+import React, { useMemo } from "react";
+import { useAppSelector } from "../../store/hooks";
+import { RootState } from "../../store";
 
 // Assign material values to each piece type
 const pieceValues: Record<string, number> = {
@@ -13,42 +9,51 @@ const pieceValues: Record<string, number> = {
     bishop: 3,
     rook: 5,
     queen: 9,
-    king: 0, // King has no material value
 };
 
-// Calculate material difference
-const calculateMaterialAdvantage = (capturedPieces: PieceData[]) => {
-    let whiteMaterial = 0;
-    let blackMaterial = 0;
+interface MaterialCountProps {
+    playerColor: "white" | "black";
+}
 
-    capturedPieces.forEach(({ type, color }) => {
-        const value = pieceValues[type] || 0;
-        if (color === "white") {
-            blackMaterial += value; // White lost it, so black gained material
-        } else {
-            whiteMaterial += value; // Black lost it, so white gained material
-        }
-    });
+const MaterialCount: React.FC<MaterialCountProps> = ({ playerColor }) => {
+    // Select boardState from Redux store with memoization
+    const boardState = useAppSelector((state: RootState) => state.game.boardState);
 
-    return { whiteMaterial, blackMaterial };
-};
-const MaterialCount: React.FC<MaterialCountProps> = ({ capturedPieces, playerColor }) => {
-    const { whiteMaterial, blackMaterial } = calculateMaterialAdvantage(capturedPieces);
-    const materialDiff = whiteMaterial - blackMaterial;
+    // Calculate material difference using useMemo for performance optimization
+    const materialDiff = useMemo(() => {
+        let whiteMaterial = 0;
+        let blackMaterial = 0;
 
-    // Hide if the game hasn't started (no captures yet) or if there's no material advantage
-    if (capturedPieces.length === 0 || materialDiff === 0) {
+        // Iterate through the 2D boardState array to calculate material values
+        boardState.board.forEach((row) => {
+            row.forEach((square) => {
+                if (square) { // Ensure there's a piece in the square
+                    const { type, color } = square; // Extract piece type and color
+                    const value = pieceValues[type] || 0;
+
+                    if (color === "white") {
+                        whiteMaterial += value;
+                    } else {
+                        blackMaterial += value;
+                    }
+                }
+            });
+        });
+
+        return whiteMaterial - blackMaterial;
+    }, [boardState]); // Recalculate only when boardState changes
+
+    // Hide component if no material advantage
+    if (materialDiff === 0) {
         return null;
     }
 
-    // Only display for the player who is winning material
+    // Only show the advantage for the player who is winning
     if ((playerColor === "white" && materialDiff < 0) || (playerColor === "black" && materialDiff > 0)) {
         return null;
     }
 
-    return (
-        <span className="text-green-400">+{Math.abs(materialDiff)}</span>
-    );
+    return <span className="text-green-400">+{Math.abs(materialDiff)}</span>;
 };
 
 export default MaterialCount;
