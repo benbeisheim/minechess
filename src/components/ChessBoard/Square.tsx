@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Position, PieceData, PlayerColor, PieceType } from '../../types/chess';
+import { BoardColorObj, Position, PieceData, PlayerColor, PieceType } from '../../types/chess';
 import { Piece } from '../Piece/Piece';
 import { SquareHighlight } from './SquareHighlight';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
@@ -19,7 +19,7 @@ interface SquareProps {
     orientation: PlayerColor;
     notation: string;
     squareSize: number;
-    boardColor: string; // Color
+    boardColor: BoardColorObj,
     onSquareClick?: () => void;
     handlePromotionClick: (pieceType: PieceType) => void;
 }
@@ -61,21 +61,7 @@ const Square: React.FC<SquareProps> = ({
     );
 
     const isPromotionSquare = squareState.promotionSquare && squareState.promotionSquare.x === position.x && squareState.promotionSquare.y === position.y;
-    // Make the color classes more specific to ensure they apply
-    const colorMap: Record<string, [string, string]> = {
-        amber: ["bg-amber-100", "bg-amber-700"],
-        gray: ["bg-gray-100", "bg-gray-600"],
-        blue: ["bg-cyan-100", "bg-cyan-700"],
-        green: ["bg-lime-100", "bg-lime-700"],
-        purple: ["bg-fuchsia-100", "bg-fuchsia-700"],
-    };
-
-    const baseColor = colorMap[boardColor]
-        ? isLight
-            ? colorMap[boardColor][0]
-            : colorMap[boardColor][1]
-        : isLight
-    
+    const squareBackgroundColor = isLight ? boardColor.light : boardColor.dark;
 
     // Determine if this square should show labels
     const shouldShowFileLabel = orientation === 'white' ? position.y === 7 : position.y === 0;
@@ -89,11 +75,11 @@ const Square: React.FC<SquareProps> = ({
     
     return (
         <div 
-            className={`${baseColor}
-                       relative flex items-center justify-center`}
+            className={`relative flex items-center justify-center`}
             style={{
                 width: `${squareSize}px`,
                 height: `${squareSize}px`,
+                backgroundColor: squareBackgroundColor,
             }}
             data-square={notation}
             onClick={(isPromotionSquare) ? () => {return} : onSquareClick}

@@ -144,3 +144,8 @@ export interface GameAction {
         promotionChoice?: PieceType;
     };
 }
+
+export interface BoardColorObj {
+    light: string,
+    dark: string,
+};

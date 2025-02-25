@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import Square from './Square';
-import { Position, PlayerColor, PieceType } from '../../types/chess';
+import { BoardColorObj, Position, PlayerColor, PieceType } from '../../types/chess';
 import { useAppSelector } from '../../store/hooks';
 import { RootState } from '../../store';
 import { createSelector } from '@reduxjs/toolkit';
@@ -17,7 +17,7 @@ interface ChessBoardProps {
     maxSize?: number;
     padding?: number;
     handlePromotionClick: (pieceType: PieceType) => void;
-    selectedColor: string;
+    selectedColor: BoardColorObj;
 }
 
 const selectLocalBoardState = createSelector(
