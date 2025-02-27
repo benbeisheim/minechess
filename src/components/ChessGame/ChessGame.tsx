@@ -5,7 +5,7 @@ import ChessBoard from "../ChessBoard/ChessBoard";
 import PlayerControl from "../PlayerControl/PlayerControl";
 import { GameWebSocket } from "../../services/websocket/gameWebSocket";
 import { useEffect, useState, useRef } from "react";
-import { PlayerColor } from "../../types/chess";
+import { PlayerColor, BoardColorObj } from "../../types/chess";
 import { RootState } from "../../store";
 import { createSelector } from "@reduxjs/toolkit";
 
@@ -42,7 +42,11 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
     const dispatch = useAppDispatch();
     const gameState = useAppSelector(selectGameState);
     const gameSocket = useRef<GameWebSocket | null>(null);
-    const [selectedColor, setSelectedColor] = useState("amber"); // Default color
+    // Set to amber color by default
+    const [selectedColor, setSelectedColor] = useState<BoardColorObj>({
+        light: 'hsl(25, 100%, 89%)',
+        dark: 'hsl(25, 100%, 36%)',
+    });
 
     useEffect(() => {
         dispatch(setPlayerColor(playerColor));
@@ -108,6 +112,7 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
                     onChangeColor={(color) => {
                         setSelectedColor(color)
                     }}
+                    selectedColor={selectedColor}
                     onResign={() => {}}
                     onDrawOffer={() => {}}
                     onLeaveGame={() => {
