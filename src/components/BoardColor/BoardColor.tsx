@@ -64,20 +64,12 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                     <Button className="color-picker" onPress={() => setPopoverOpen(true)}>
                         <span style={{ paddingRight: 8 }} className='text-gray-800 dark:text-white'>Board Color</span>
                         <div>
-                          <ColorSwatch color={parseColor(
-                            `hsl(${darkBoardColor.hue}, ${darkBoardColor.saturation}%, ${darkBoardColor.lightness}%)`
-                            )}/>
-                            <ColorSwatch color={parseColor(
-                              `hsl(${lightBoardColor.hue}, ${lightBoardColor.saturation}%, ${(lightBoardColor.lightness)}%)`
-                            )}/>
+                          <ColorSwatch color={darkBoardColor}/>
+                            <ColorSwatch color={lightBoardColor}/>
                         </div>
                         <div>
-                            <ColorSwatch color={parseColor(
-                              `hsl(${lightBoardColor.hue}, ${lightBoardColor.saturation}%, ${(lightBoardColor.lightness)}%)`
-                            )}/>
-                            <ColorSwatch color={parseColor(
-                              `hsl(${darkBoardColor.hue}, ${darkBoardColor.saturation}%, ${darkBoardColor.lightness}%)`
-                            )}/>
+                            <ColorSwatch color={lightBoardColor}/>
+                            <ColorSwatch color={darkBoardColor}/>
                         </div>
                     </Button>
                     <Popover
@@ -88,20 +80,12 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                         const currentDarkColor = parseColor(selectedColor.dark);
                         const currentLightColor = parseColor(selectedColor.light);
                         setHueColor(parseColor(
-                          `hsl(${currentDarkColor.hue}, ${currentDarkColor.saturation}%, 50%)`
+                          `hsl(${currentDarkColor.getChannelValue('hue')}, ${currentDarkColor.getChannelValue('saturation')}%, 50%)`
                         ));
-                        setDarkSlider(parseColor(
-                          `hsl(${currentDarkColor.hue}, ${currentDarkColor.saturation}%, ${currentDarkColor.lightness}%)`
-                        ))
-                        setDarkBoardColor(parseColor(
-                          `hsl(${currentDarkColor.hue}, ${currentDarkColor.saturation}%, ${currentDarkColor.lightness}%)`
-                        ))
-                        setLightSlider(parseColor(
-                          `hsl(${currentLightColor.hue}, ${currentLightColor.saturation}%, ${currentLightColor.lightness}%)`
-                        ))
-                        setLightBoardColor(parseColor(
-                          `hsl(${currentLightColor.hue}, ${currentLightColor.saturation}%, ${currentLightColor.lightness}%)`
-                        ))
+                        setDarkSlider(currentDarkColor);
+                        setDarkBoardColor(currentDarkColor);
+                        setLightSlider(currentLightColor);
+                        setLightBoardColor(currentLightColor);
                         // If current board color is set to a template that should be selected when the user reopens the popover
                         Object.keys(colorMap).map((color) => {
                           if (
@@ -123,17 +107,19 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                                 value={hueColor}
                                 onChange={(e) => {
                                   setHueColor(e);
+                                  const hue = e.getChannelValue('hue');
+                                  const saturation = e.getChannelValue('saturation');
                                   setDarkSlider(parseColor(
-                                    `hsl(${e.hue}, ${e.saturation}%, ${darkSlider.lightness}%)`
+                                    `hsl(${hue}, ${saturation}%, ${darkSlider.getChannelValue('lightness')}%)`
                                   ))
                                   setDarkBoardColor(parseColor(
-                                    `hsl(${e.hue}, ${e.saturation}%, ${darkBoardColor.lightness}%)`
+                                    `hsl(${hue}, ${saturation}%, ${darkBoardColor.getChannelValue('lightness')}%)`
                                   ))
                                   setLightSlider(parseColor(
-                                    `hsl(${e.hue}, ${e.saturation}%, ${lightSlider.lightness}%)`
+                                    `hsl(${hue}, ${saturation}%, ${lightSlider.getChannelValue('lightness')}%)`
                                   ))
                                   setLightBoardColor(parseColor(
-                                    `hsl(${e.hue}, ${e.saturation}%, ${lightBoardColor.lightness}%)`
+                                    `hsl(${hue}, ${saturation}%, ${lightBoardColor.getChannelValue('lightness')}%)`
                                   ))
                                   setSelectedTemplateColor(new Set());
                                 }}
@@ -151,17 +137,19 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                                 value={hueColor}
                                 onChange={(e) => {
                                   setHueColor(e);
+                                  const hue = e.getChannelValue('hue');
+                                  const saturation = e.getChannelValue('saturation');
                                   setDarkSlider(parseColor(
-                                    `hsl(${e.hue}, ${e.saturation}%, ${darkSlider.lightness}%)`
+                                    `hsl(${hue}, ${saturation}%, ${darkSlider.getChannelValue('lightness')}%)`
                                   ))
                                   setDarkBoardColor(parseColor(
-                                    `hsl(${e.hue}, ${e.saturation}%, ${darkBoardColor.lightness}%)`
+                                    `hsl(${hue}, ${saturation}%, ${darkBoardColor.getChannelValue('lightness')}%)`
                                   ))
                                   setLightSlider(parseColor(
-                                    `hsl(${e.hue}, ${e.saturation}%, ${lightSlider.lightness}%)`
+                                    `hsl(${hue}, ${saturation}%, ${lightSlider.getChannelValue('lightness')}%)`
                                   ))
                                   setLightBoardColor(parseColor(
-                                    `hsl(${e.hue}, ${e.saturation}%, ${lightBoardColor.lightness}%)`
+                                    `hsl(${hue}, ${saturation}%, ${lightBoardColor.getChannelValue('lightness')}%)`
                                   ))
                                   setSelectedTemplateColor(new Set());
                                 }}
@@ -179,8 +167,11 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                                 value={darkSlider}
                                 onChange={(e) => {
                                   setDarkSlider(e);
+                                  const hue = darkBoardColor.getChannelValue('hue');
+                                  const saturation = darkBoardColor.getChannelValue('saturation');
+                                  const lightness = (50 - (.5 * e.getChannelValue('lightness')));
                                   setDarkBoardColor(parseColor(
-                                    `hsl(${darkBoardColor.hue}, ${darkBoardColor.saturation}%, ${(50 - (.5 * e.lightness))}%)`
+                                    `hsl(${hue}, ${saturation}%, ${lightness}%)`
                                   ))
                                   setSelectedTemplateColor(new Set());
                                 }}
@@ -188,9 +179,9 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                             >
                                 <Label className='text-gray-800 dark:text-white'>Dark side</Label>
                                 <SliderOutput className='text-gray-800 dark:text-white'/>
-                                <SliderTrack style={{background: `linear-gradient(to right, hsl(${hueColor.hue}, ${hueColor.saturation}%, ${hueColor.lightness}%), rgb(0, 0, 0))`}}>
+                                <SliderTrack style={{background: `linear-gradient(to right, ${hueColor.toString('hsl')}, rgb(0, 0, 0))`}}>
                                     <ColorThumb 
-                                      style={{ background: `hsl(${darkSlider.hue}, ${darkSlider.saturation}%, ${50 - (.5 * darkSlider.lightness)}%)`}}
+                                      style={{ background: `hsl(${darkSlider.getChannelValue('hue')}, ${darkSlider.getChannelValue('saturation')}%, ${50 - (.5 * darkSlider.getChannelValue('lightness'))}%)`}}
                                     />
                                 </SliderTrack>
                             </ColorSlider>
@@ -200,8 +191,11 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                                 value={lightSlider}
                                 onChange={(e) => {
                                   setLightSlider(e);
+                                  const hue = lightBoardColor.getChannelValue('hue');
+                                  const saturation = lightBoardColor.getChannelValue('saturation');
+                                  const lightness = (.5 * e.getChannelValue('lightness')) + 50;
                                   setLightBoardColor(parseColor(
-                                    `hsl(${lightBoardColor.hue}, ${lightBoardColor.saturation}%, ${(.5 * e.lightness) + 50}%)`
+                                    `hsl(${hue}, ${saturation}%, ${lightness}%)`
                                   ));
                                   setSelectedTemplateColor(new Set());
                                 }}
@@ -209,9 +203,9 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                             >
                                 <Label className='text-gray-800 dark:text-white'>Light side</Label>
                                 <SliderOutput className='text-gray-800 dark:text-white'/>
-                                <SliderTrack style={{background: `linear-gradient(to right, hsl(${hueColor.hue}, ${hueColor.saturation}%, ${hueColor.lightness}%), rgb(255, 255, 255))`}}>
+                                <SliderTrack style={{background: `linear-gradient(to right, ${hueColor.toString('hsl')}, rgb(255, 255, 255))`}}>
                                     <ColorThumb 
-                                      style={{ background: `hsl(${lightSlider.hue}, ${lightSlider.saturation}%, ${(.5 * lightSlider.lightness) + 50}%)`}}
+                                      style={{ background: `hsl(${lightSlider.getChannelValue('hue')}, ${lightSlider.getChannelValue('saturation')}%, ${(.5 * lightSlider.getChannelValue('lightness')) + 50}%)`}}
                                     />
                                 </SliderTrack>
                             </ColorSlider>
@@ -233,24 +227,18 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                                   const selectedColorScheme = Array.from(keys)[0];
                                   const templateLightColor = parseColor(colorMap[selectedColorScheme][0])
                                   const templateDarkColor = parseColor(colorMap[selectedColorScheme][1])
-                                  // const newHue = Math.floor((templateLightColor.hue + templateDarkColor.hue) / 2);
-                                  // const newSaturation = Math.floor((templateLightColor.saturation + templateDarkColor.saturation) / 2);
-                                  const newHue = templateDarkColor.hue;
-                                  const newSaturation = templateDarkColor.saturation;
+                                  const newHue = templateDarkColor.getChannelValue('hue');
+                                  const newSaturation = templateDarkColor.getChannelValue('hue');
                                   setHueColor(parseColor(
                                     `hsl(${newHue}, ${newSaturation}%, 50%)`
                                   ))
-                                  setDarkSlider(parseColor(
-                                    `hsl(${newHue}, ${newSaturation}%, ${templateDarkColor.lightness}%)`
-                                  ))
-                                  setDarkBoardColor(parseColor(
-                                    `hsl(${newHue}, ${newSaturation}%, ${templateDarkColor.lightness}%)`
-                                  ))
+                                  setDarkSlider(templateDarkColor)
+                                  setDarkBoardColor(templateDarkColor)
                                   setLightSlider(parseColor(
-                                    `hsl(${newHue}, ${newSaturation}%, ${templateLightColor.lightness}%)`
+                                    `hsl(${newHue}, ${newSaturation}%, ${templateLightColor.getChannelValue('lightness')}%)`
                                   ))
                                   setLightBoardColor(parseColor(
-                                    `hsl(${newHue}, ${newSaturation}%, ${templateLightColor.lightness}%)`
+                                    `hsl(${newHue}, ${newSaturation}%, ${templateLightColor.getChannelValue('lightness')}%)`
                                   ))
                                   setSelectedTemplateColor(keys);
                                 }}
@@ -271,8 +259,8 @@ const BoardColor: React.FC<BoardColorProps> = ({ onChangeColor, selectedColor })
                                   style={{ marginTop: 8 }}
                                   onClick={() => {
                                       onChangeColor({
-                                          light: `hsl(${lightBoardColor.hue}, ${lightBoardColor.saturation}%, ${lightBoardColor.lightness}%)`,
-                                          dark: `hsl(${darkBoardColor.hue}, ${darkBoardColor.saturation}%, ${darkBoardColor.lightness}%)`,
+                                          light: `${lightBoardColor.toString('hsl')}`,
+                                          dark: `${darkBoardColor.toString('hsl')}`,
                                       })
                                       setPopoverOpen(false);
                                   }}
