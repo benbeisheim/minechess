@@ -53,22 +53,22 @@ export function TestInterface() {
     return (
         <div className="h-full">
             {/* Bombman Animation Layer */}
-            <div className="absolute top-30 right-0 w-60 h-60 -z-10" >
-                <div className="transform -translate-y-1/2 w-[150px] sm:w-[200px] lg:w-[260px] h-auto z-0 animate-walk-across">
+            <div className="absolute top-30 right-0 w-60 h-60 z-10">
+                <div className="transform -translate-y-1/2 w-[150px] sm:w-[200px] lg:w-[260px] h-auto animate-walk-across">
                     <Bombman />
                 </div>
             </div>
-            <h1 className="mt-5 text-4xl md:text-6xl mb-4 font-bold text-center text-gray-800 dark:text-white">
+            <h1 className="relative z-20 mt-5 text-4xl md:text-6xl mb-4 font-bold text-center text-gray-800 dark:text-white">
                 MineChess
             </h1>
             {/* Create New Private Game Section */}
             <div className="mb-6 text-center">
-                <h2 className="text-lg md:text-2xl mb-3 text-amber-600">
+                <h2 className="relative z-20 text-lg md:text-2xl mb-3 text-amber-600">
                     Create New Private Game
                 </h2>
                 <button
                     onClick={handleCreateGame}
-                    className="w-[40vw] max-w-xs px-[2.5vw] py-[1vw] bg-green-500 text-white rounded-md text-base md:text-lg hover:bg-green-600 transition"
+                    className="relative z-20 w-[40vw] max-w-xs px-[2.5vw] py-[1vw] bg-green-500 text-white rounded-md text-base md:text-lg hover:bg-green-600 transition"
                 >
                     Create New Game
                 </button>
@@ -76,7 +76,7 @@ export function TestInterface() {
 
             {/* Join Private Game Section */}
             <div className="mb-8 text-center">
-                <h2 className="text-lg md:text-2xl mb-3 text-amber-600">
+                <h2 className="relative z-20 text-lg md:text-2xl mb-3 text-amber-600">
                     Join Private Game
                 </h2>
                 <form
