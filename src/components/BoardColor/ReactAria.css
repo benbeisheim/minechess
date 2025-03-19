@@ -1,0 +1,230 @@
+.color-picker {
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  /* commented out so the squares are touching gap: 8px; */
+  outline: none;
+  border-radius: 4px; 
+  appearance: none;
+  vertical-align: middle;
+  font-size: 1rem;
+  color: var(--text-color);
+}
+
+.color-picker:focus {
+  outline: none;
+}
+
+.react-aria-ColorSwatch {
+  width: 32px;
+  height: 32px;
+  /* tiles have no rounded corners in chess border-radius: 4px; */
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+
+.react-aria-ColorArea {
+  width: 192px;
+  height: 192px;
+  border-radius: 4px;
+  flex-shrink: 0;
+
+  &[data-disabled] {
+    background: gray !important;
+
+    .react-aria-ColorThumb {
+      background: gray !important;
+    }
+  }
+}
+
+.react-aria-ColorThumb {
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px black, inset 0 0 0 1px black;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  box-sizing: border-box;
+
+  /*
+  &[data-focus-visible] {
+    width: 24px;
+    height: 24px;
+  }
+  */
+}
+
+.react-aria-ColorSlider {
+  display: grid;
+  grid-template-areas: "label output"
+                       "track track";
+  grid-template-columns: 1fr auto;
+  gap: 4px;
+  max-width: 300px;
+
+  .react-aria-Label {
+    grid-area: label;
+  }
+
+  .react-aria-SliderOutput {
+    grid-area: output;
+  }
+
+  .react-aria-SliderTrack {
+    grid-area: track;
+    border-radius: 4px;
+  }
+
+  &[data-orientation=horizontal] {
+    .react-aria-SliderTrack {
+      height: 28px;
+    }
+
+    .react-aria-ColorThumb {
+      top: 50%;
+    }
+  }
+
+  &[data-orientation=vertical] {
+    height: 150px;
+    display: block;
+
+    .react-aria-Label,
+    .react-aria-SliderOutput {
+      display: none;
+    }
+
+    .react-aria-SliderTrack {
+      width: 28px;
+      height: 100%;
+    }
+
+    .react-aria-ColorThumb {
+      left: 50%;
+    }
+  }
+
+  &[data-disabled] {
+    .react-aria-SliderTrack {
+      background: gray !important;
+    }
+
+    .react-aria-ColorThumb {
+      background: gray !important;
+      opacity: 0.5;
+    }
+  }
+}
+
+.react-aria-ColorSwatchPicker {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.react-aria-ColorSwatchPickerItem {
+  position: relative;
+  outline: none;
+  border-radius: 4px;
+  width: fit-content;
+  forced-color-adjust: none;
+
+  &[data-focus-visible] {
+    outline: 2px solid var(--focus-ring-color);
+    outline-offset: 2px;
+  }
+
+  &[data-selected]::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 2px solid black;
+    outline: 2px solid white;
+    outline-offset: -4px;
+    border-radius: inherit;
+  }
+}
+
+.react-aria-Popover {
+  --background-color: var(--overlay-background);
+
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 20px rgba(0 0 0 / 0.1);
+  border-radius: 6px;
+  background: var(--background-color);
+  color: var(--text-color);
+  outline: none;
+  max-width: 250px;
+  transition: transform 200ms, opacity 200ms;
+
+  .react-aria-OverlayArrow svg {
+    display: block;
+    fill: var(--background-color);
+    stroke: var(--border-color);
+    stroke-width: 1px;
+  }
+
+  &[data-entering],
+  &[data-exiting] {
+    transform: var(--origin);
+    opacity: 0;
+  }
+
+  &[data-placement=top] {
+    --origin: translateY(8px);
+
+    &:has(.react-aria-OverlayArrow) {
+      margin-bottom: 6px;
+    }
+  }
+
+  &[data-placement=bottom] {
+    --origin: translateY(-8px);
+
+    &:has(.react-aria-OverlayArrow) {
+      margin-top: 6px;
+    }
+
+    .react-aria-OverlayArrow svg {
+      transform: rotate(180deg);
+    }
+  }
+
+  &[data-placement=right] {
+    --origin: translateX(-8px);
+
+    &:has(.react-aria-OverlayArrow) {
+      margin-left: 6px;
+    }
+
+    .react-aria-OverlayArrow svg {
+      transform: rotate(90deg);
+    }
+  }
+
+  &[data-placement=left] {
+    --origin: translateX(8px);
+
+    &:has(.react-aria-OverlayArrow) {
+      margin-right: 6px;
+    }
+
+    .react-aria-OverlayArrow svg {
+      transform: rotate(-90deg);
+    }
+  }
+}
+
+.color-picker-dialog {
+  outline: none;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 192px;
+  max-height: inherit;
+  box-sizing: border-box;
+  overflow: auto;
+  background: #1d1d1d;
+}
