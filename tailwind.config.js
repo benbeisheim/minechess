@@ -13,16 +13,15 @@ export default {
         'pearl': '#F5F5DC',
       },
       keyframes: {
-        'walk-across': {
-          '0%': { transform: 'translateX(100%)' }, // Start offscreen on the right
-          '49.9%': { transform: 'translateX(-100vw) scaleX(1)' }, // Move left without flipping
-          '50%': { transform: 'translateX(-100vw) scaleX(-1)' }, // Flip instantly at midpoint
-          '100%': { transform: 'translateX(100%) scaleX(-1)' }, // Loop back to the right
-          
+        'walk-bounce': {
+          '0%, 100%': { transform: 'translateX(calc(100cqi - 100%))' },
+          '49.5%': { transform: 'translateX(0)' },
+          '50%': { transform: 'translateX(0) scaleX(-1)' },
+          '99.5%': { transform: 'translateX(calc(100cqi - 100%)) scaleX(-1)' },
         },
       },
       animation: {
-        'walk-across': 'walk-across 14s linear infinite', // 10s looped animation
+        'walk-bounce': 'walk-bounce 10s linear infinite',
       },
     },
   },
