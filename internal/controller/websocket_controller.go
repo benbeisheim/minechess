@@ -23,7 +23,6 @@ func NewWebSocketController(gameService *service.GameService) *WebSocketControll
 
 // HandleConnection is called when a new WebSocket connection is established
 func (wsc *WebSocketController) HandleConnection(c *websocket.Conn) {
-	fmt.Println("Handling connection")
 	// Extract game ID and player ID from context
 	gameID := c.Params("gameId")
 	playerID := c.Locals("playerID").(string)
@@ -67,7 +66,6 @@ func (wsc *WebSocketController) HandleConnection(c *websocket.Conn) {
 }
 
 func (wsc *WebSocketController) handleMessage(gameID, playerID string, msg ws.Message) error {
-	fmt.Println("Handling message:", msg.Type)
 	switch msg.Type {
 	case ws.MessageTypeMove:
 		var move model.WSMove

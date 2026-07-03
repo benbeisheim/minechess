@@ -33,7 +33,6 @@ func (gs *GameService) CreateGame() (string, error) {
 }
 
 func (gs *GameService) JoinMatchmaking(playerID string) error {
-	fmt.Println("Joining matchmaking for player in game service:", playerID)
 	return gs.gameManager.JoinMatchmaking(playerID)
 }
 
@@ -50,12 +49,10 @@ func (gs *GameService) HandleMove(gameID string, playerID string, move model.WSM
 }
 
 func (gs *GameService) RegisterConnection(gameID string, playerID string, conn *websocket.Conn) error {
-	fmt.Println("Registering connection in game service")
 	return gs.gameManager.RegisterConnection(gameID, playerID, conn)
 }
 
 func (gs *GameService) UnregisterConnection(gameID string, playerID string) {
-	fmt.Println("Unregistering connection in game service")
 	gs.gameManager.UnregisterConnection(gameID, playerID)
 }
 

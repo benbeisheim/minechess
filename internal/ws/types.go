@@ -8,12 +8,13 @@ import (
 type MessageType string
 
 const (
-	MessageTypeMove      MessageType = "move"
-	MessageTypeGameState MessageType = "gameState"
-	MessageTypeDrawOffer MessageType = "drawOffer"
-	MessageTypeResign    MessageType = "resign"
-	MessageTypeDraw      MessageType = "draw"
-	MessageTypeError     MessageType = "error"
+	MessageTypeMove         MessageType = "move"
+	MessageTypeGameState    MessageType = "gameState"
+	MessageTypeDrawOffer    MessageType = "drawOffer"
+	MessageTypeResign       MessageType = "resign"
+	MessageTypeDraw         MessageType = "draw"
+	MessageTypeOpponentLeft MessageType = "opponentLeft"
+	MessageTypeError        MessageType = "error"
 )
 
 // Message represents a WebSocket message in our system

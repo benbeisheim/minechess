@@ -3,6 +3,7 @@ package controller
 import (
 	"bufio"
 	"fmt"
+	"strings"
 
 	"github.com/benbeisheim/minechess-backend/internal/service"
 	"github.com/gofiber/fiber/v2"
@@ -32,9 +33,7 @@ func (gc *GameController) CreateGame(c *fiber.Ctx) error {
 
 func (gc *GameController) JoinGame(c *fiber.Ctx) error {
 	gameID := c.Params("gameId")
-	fmt.Println("Game ID:", gameID)
 	playerID := c.Locals("playerID").(string)
-	fmt.Println("Player ID:", playerID)
 
 	color, err := gc.gameService.JoinGame(gameID, playerID)
 	if err != nil {
@@ -69,14 +68,12 @@ func (gc *GameController) GetGameState(c *fiber.Ctx) error {
 
 func (gc *GameController) JoinMatchmaking(c *fiber.Ctx) error {
 	playerID := c.Locals("playerID").(string)
-	fmt.Println("Adding player to matchmaking queue:", playerID)
 
 	if err := gc.gameService.JoinMatchmaking(playerID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to join matchmaking",
 		})
 	}
-	fmt.Println("Player added to matchmaking queue:", playerID)
 
 	return c.JSON(fiber.Map{
 		"status": "queued",
@@ -89,7 +86,9 @@ func (gc *GameController) HandleMatchmakingEvents(c *fiber.Ctx) error {
 	c.Set("Connection", "keep-alive")
 	c.Set("Transfer-Encoding", "chunked")
 
-	playerID := c.Query("playerId")
+	// Clone: the query string points into fasthttp's reusable buffer and we retain
+	// this ID as a long-lived map key.
+	playerID := strings.Clone(c.Query("playerId"))
 	matchChan := make(chan string)
 
 	if err := gc.gameService.RegisterMatchmakingChannel(playerID, matchChan); err != nil {
@@ -106,18 +105,10 @@ func (gc *GameController) HandleMatchmakingEvents(c *fiber.Ctx) error {
 			gc.gameService.UnregisterMatchmakingChannel(playerID)
 		}()
 
-		for {
-			select {
-			case msg, ok := <-matchChan:
-				if !ok {
-					// Channel was closed, exit the stream
-					return
-				}
-				fmt.Fprintf(w, "data: %s\n\n", msg)
-				err := w.Flush()
-				if err != nil {
-					return
-				}
+		for msg := range matchChan {
+			fmt.Fprintf(w, "data: %s\n\n", msg)
+			if err := w.Flush(); err != nil {
+				return
 			}
 		}
 	})

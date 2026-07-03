@@ -4,7 +4,7 @@ package service
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -23,11 +23,9 @@ type GameManager struct {
 func (gm *GameManager) RegisterMatchmakingChannel(playerID string, ch chan string) error {
 	gm.mu.Lock()
 	defer gm.mu.Unlock()
-	fmt.Println("Registering matchmaking channel for player", playerID)
 
 	// If there's an existing channel, we need to handle it properly
 	if existingCh, exists := gm.matchingChannels[playerID]; exists {
-		fmt.Println("Found existing channel for player", playerID)
 		// Remove from map first to prevent any new writes
 		delete(gm.matchingChannels, playerID)
 		// Then close the channel
@@ -57,12 +55,12 @@ func (gm *GameManager) processMatchmaking() {
 			// Add players to game
 			p1Color, err := game.AddPlayer(player1.ID) // Assuming this returns the assigned color
 			if err != nil {
-				fmt.Println("Error adding player to game", err)
+				log.Printf("matchmaking: failed to add player to game: %v", err)
 				continue
 			}
 			p2Color, err := game.AddPlayer(player2.ID)
 			if err != nil {
-				fmt.Println("Error adding player to game", err)
+				log.Printf("matchmaking: failed to add player to game: %v", err)
 				continue
 			}
 			gm.games[gameID] = game
@@ -85,14 +83,13 @@ func (gm *GameManager) processMatchmaking() {
 				if ch, ok := gm.matchingChannels[playerID]; ok {
 					select {
 					case ch <- mustJSON(event):
-						fmt.Printf("Sent match found event to player %s\n", playerID)
 						// Remove the channel from the map
 						delete(gm.matchingChannels, playerID)
 						// Close the channel
 						close(ch)
 						return true
 					default:
-						fmt.Printf("Failed to send event to player %s\n", playerID)
+						log.Printf("matchmaking: failed to send match event to player %s", playerID)
 						return false
 					}
 				}
@@ -110,7 +107,7 @@ func (gm *GameManager) processMatchmaking() {
 			// If we failed to notify both players, we might want to handle that
 			if !successfullySentBoth {
 				// Maybe add them back to queue or implement retry logic
-				fmt.Println("Failed to notify all players of match")
+				log.Println("matchmaking: failed to notify all players of match")
 			}
 		}
 		gm.mu.Unlock()
@@ -120,7 +117,6 @@ func (gm *GameManager) processMatchmaking() {
 func (gm *GameManager) UnregisterMatchmakingChannel(playerID string) {
 	gm.mu.Lock()
 	defer gm.mu.Unlock()
-	fmt.Println("Unregistering matchmaking channel for player", playerID, "with channel", gm.matchingChannels[playerID])
 
 	// We don't close the channel here because it might be used by other goroutines
 	// The creator of the channel (HandleMatchmakingEvents) is responsible for closing it
@@ -128,13 +124,12 @@ func (gm *GameManager) UnregisterMatchmakingChannel(playerID string) {
 }
 
 // Helper function for JSON marshaling
-func mustJSON(v interface{}) string {
+func mustJSON(v any) string {
 	bytes, err := json.Marshal(v)
 	if err != nil {
 		// In production, you'd want to handle this error more gracefully
 		panic(err)
 	}
-	fmt.Println("Marshalled JSON:", string(bytes))
 	return string(bytes)
 }
 
@@ -176,7 +171,6 @@ func (gm *GameManager) GetGame(gameID string) (*model.Game, error) {
 }
 
 func (gm *GameManager) AddPlayerToGame(gameID string, playerID string) (model.PlayerColor, error) {
-	fmt.Println("Adding player to game", gameID, playerID)
 	gm.mu.Lock()
 	defer gm.mu.Unlock()
 
@@ -191,11 +185,8 @@ func (gm *GameManager) AddPlayerToGame(gameID string, playerID string) (model.Pl
 func (gm *GameManager) JoinMatchmaking(playerID string) error {
 	gm.mu.Lock()
 	defer gm.mu.Unlock()
-	fmt.Println("Joining matchmaking for player in game manager:", playerID)
 
-	err := gm.queue.AddPlayer(model.Player{ID: playerID})
-	if err != nil {
-		fmt.Println("Error adding player to matchmaking queue:", err)
+	if err := gm.queue.AddPlayer(model.Player{ID: playerID}); err != nil {
 		return err
 	}
 
@@ -226,7 +217,6 @@ func (gm *GameManager) MakeMove(gameID string, playerID string, move model.WSMov
 }
 
 func (gm *GameManager) RegisterConnection(gameID string, playerID string, conn *websocket.Conn) error {
-	fmt.Println("Registering connection in game manager")
 	gm.mu.Lock()
 	defer gm.mu.Unlock()
 
@@ -239,7 +229,6 @@ func (gm *GameManager) RegisterConnection(gameID string, playerID string, conn *
 }
 
 func (gm *GameManager) UnregisterConnection(gameID string, playerID string) {
-	fmt.Println("Unregistering connection in game manager")
 	gm.mu.Lock()
 	defer gm.mu.Unlock()
 	game, exists := gm.games[gameID]

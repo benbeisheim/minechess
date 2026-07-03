@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
@@ -122,7 +123,6 @@ func newCapturedPieces() CapturedPieces {
 }
 
 func (g *Game) AddPlayer(playerID string) (PlayerColor, error) {
-	fmt.Println("Adding player to game in model/game", playerID, g.state.Players)
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
@@ -142,7 +142,6 @@ func (g *Game) AddPlayer(playerID string) (PlayerColor, error) {
 		}
 		return PlayerColorBlack, nil
 	}
-	fmt.Println("Game is full")
 	return "", errors.New("game is full")
 }
 
@@ -176,13 +175,6 @@ func (g *Game) isPlayerInGame(playerID string) bool {
 	return false
 }
 
-func (g *Game) CanSpectate() bool {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	return g.state.Players.White.ID == "" || g.state.Players.Black.ID == ""
-}
-
 func (g *Game) canSpectate() bool {
 	return g.state.Players.White.ID == "" || g.state.Players.Black.ID == ""
 }
@@ -190,14 +182,19 @@ func (g *Game) canSpectate() bool {
 func (g *Game) MakeMove(move WSMove) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	fmt.Println("Making move in model/game", move)
 
-	if g.state.ToMove != g.state.Board.Board[move.From.Y][move.From.X].Color {
-		return errors.New("not your turn")
+	// Guard against out-of-bounds coordinates before indexing the board.
+	if !isValidPosition(move.From) || !isValidPosition(move.To) {
+		return errors.New("invalid move, out of bounds")
 	}
 
-	if g.state.Board.Board[move.From.Y][move.From.X] == nil {
+	piece := g.state.Board.Board[move.From.Y][move.From.X]
+	if piece == nil {
 		return errors.New("no piece at from square")
+	}
+
+	if g.state.ToMove != piece.Color {
+		return errors.New("not your turn")
 	}
 
 	// Validate and execute the move
@@ -257,7 +254,6 @@ func (g *Game) MakeMove(move WSMove) error {
 	}
 */
 func (g *Game) validateMove(move WSMove) error {
-	fmt.Println("Validating move in model/game", move)
 	// check if move is out of bounds
 	if move.From.X < 0 || move.From.X > 7 || move.From.Y < 0 || move.From.Y > 7 || move.To.X < 0 || move.To.X > 7 || move.To.Y < 0 || move.To.Y > 7 {
 		return errors.New("invalid move, out of bounds")
@@ -265,9 +261,7 @@ func (g *Game) validateMove(move WSMove) error {
 	// check if move is legal
 	moveToCheck := SimpleMove{From: move.From, To: move.To}
 	isLegal := false
-	fmt.Println("Legal moves for piece", g.getLegalMovesForPiece(g.state.Board.Board[move.From.Y][move.From.X]))
 	for _, legalMove := range g.getLegalMovesForPiece(g.state.Board.Board[move.From.Y][move.From.X]) {
-		fmt.Println("Checking legal move", legalMove)
 		if legalMove.From == moveToCheck.From && legalMove.To == moveToCheck.To {
 			isLegal = true
 			break
@@ -547,14 +541,12 @@ func (g *Game) getLegalMovesForPiece(piece *Piece) []SimpleMove {
 		return g.filterLegalMoves(psuedoMoves)
 	case Rook:
 		psuedoMoves := g.getPsuedoRookMoves(piece)
-		fmt.Println("Psuedo rook moves", psuedoMoves)
 		return g.filterLegalMoves(psuedoMoves)
 	case Queen:
 		psuedoMoves := g.getPsuedoQueenMoves(piece)
 		return g.filterLegalMoves(psuedoMoves)
 	case King:
 		psuedoMoves := g.getPsuedoKingMoves(piece)
-		fmt.Println("Psuedo king moves", psuedoMoves)
 		return g.filterLegalMoves(psuedoMoves)
 	default:
 		return []SimpleMove{}
@@ -571,7 +563,6 @@ type TempMove struct {
 }
 
 func (g *Game) filterLegalMoves(pseudoMoves []SimpleMove) []SimpleMove {
-	fmt.Println("Filtering legal moves: pseudoMoves", pseudoMoves)
 	if len(pseudoMoves) == 0 {
 		return nil
 	}
@@ -581,7 +572,6 @@ func (g *Game) filterLegalMoves(pseudoMoves []SimpleMove) []SimpleMove {
 	for _, move := range pseudoMoves {
 		if temp, ok := g.tryMove(move); ok {
 			// Check if this move leaves or puts the king in check
-			fmt.Println("Checking if king is in check after move", move)
 			if !isKingInCheck(g.state.Board, g.state.ToMove) {
 				legalMoves = append(legalMoves, move)
 			}
@@ -639,10 +629,8 @@ func (g *Game) undoMove(temp TempMove) {
 		switch g.state.ToMove {
 		case "white":
 			g.state.Board.WhiteKingPosition = temp.oldKingPos
-			fmt.Println("Restored white king position", g.state.Board.WhiteKingPosition)
 		case "black":
 			g.state.Board.BlackKingPosition = temp.oldKingPos
-			fmt.Println("Restored black king position", g.state.Board.BlackKingPosition)
 		}
 	}
 }
@@ -718,7 +706,6 @@ func (g *Game) getPsuedoRookMoves(piece *Piece) []SimpleMove {
 	// TODO: Implement psuedo rook moves
 	rookMoves := []SimpleMove{}
 	rookDirs := []Position{{X: 1, Y: 0}, {X: -1, Y: 0}, {X: 0, Y: 1}, {X: 0, Y: -1}}
-	fmt.Println("Getting psuedo rook moves for piece in getPsuedoRookMoves", piece)
 	for _, dir := range rookDirs {
 		targetPos := Position{X: piece.Position.X + dir.X, Y: piece.Position.Y + dir.Y}
 		for boundaryCheck(targetPos) {
@@ -733,7 +720,6 @@ func (g *Game) getPsuedoRookMoves(piece *Piece) []SimpleMove {
 			targetPos = Position{X: targetPos.X + dir.X, Y: targetPos.Y + dir.Y}
 		}
 	}
-	fmt.Println("Rook moves", rookMoves)
 	return rookMoves
 }
 
@@ -873,9 +859,6 @@ func (g *Game) switchTurn() {
 }
 
 func (g *Game) RegisterConnection(playerID string, conn *websocket.Conn) error {
-	connID := fmt.Sprintf("%p", conn)
-	fmt.Printf("Starting RegisterConnection for player %s, conn %s\n", playerID, connID)
-
 	g.mu.Lock()
 	isAuthorized := g.isPlayerInGame(playerID) || g.canSpectate()
 	g.mu.Unlock()
@@ -886,7 +869,8 @@ func (g *Game) RegisterConnection(playerID string, conn *websocket.Conn) error {
 
 	g.connections.mu.Lock()
 	if _, exists := g.connections.connections[playerID]; exists {
-		// If already connected, reject new connection
+		// A live connection already exists for this player; reject the new one and
+		// leave the existing registration untouched.
 		g.connections.mu.Unlock()
 		conn.WriteMessage(
 			websocket.CloseMessage,
@@ -896,65 +880,76 @@ func (g *Game) RegisterConnection(playerID string, conn *websocket.Conn) error {
 			),
 		)
 		conn.Close()
-		return nil
+		return errors.New("connection already exists")
 	}
 
 	// Register new connection
 	g.connections.connections[playerID] = conn
 	g.connections.mu.Unlock()
-	fmt.Printf("Registered new connection %s for player %s\n", connID, playerID)
 
-	// Send initial state...
+	// Send initial state to the newly connected player (and anyone else watching).
 	go g.broadcastState()
 	return nil
 }
 
 func (g *Game) UnregisterConnection(playerID string) {
 	g.connections.mu.Lock()
-	defer g.connections.mu.Unlock()
+	_, existed := g.connections.connections[playerID]
+	if existed {
+		delete(g.connections.connections, playerID)
+	}
+	g.connections.mu.Unlock()
 
-	if conn, exists := g.connections.connections[playerID]; exists {
-		connID := fmt.Sprintf("%p", conn)
-		// Only unregister if this is still the current connection
-		if fmt.Sprintf("%p", g.connections.connections[playerID]) == connID {
-			fmt.Printf("Unregistering current connection %s for player %s\n", connID, playerID)
-			delete(g.connections.connections, playerID)
-		} else {
-			fmt.Printf("Ignoring unregister for old connection %s for player %s\n", connID, playerID)
-		}
+	if !existed {
+		return
+	}
+
+	// If one of the two players dropped, tell the remaining player so their client
+	// can return to the lobby rather than waiting on a dead opponent.
+	if g.IsPlayerInGame(playerID) {
+		g.broadcastMessage(ws.Message{
+			Type:    ws.MessageTypeOpponentLeft,
+			Payload: json.RawMessage(`{}`),
+		})
 	}
 }
 
-func (g *Game) broadcastState() error {
-	// Get a snapshot of connections under the connections mutex
+func (g *Game) broadcastState() {
+	jsonGameState, err := json.Marshal(g.state)
+	if err != nil {
+		log.Printf("failed to marshal game state: %v", err)
+		return
+	}
+	g.broadcastMessage(ws.Message{
+		Type:    ws.MessageTypeGameState,
+		Payload: json.RawMessage(jsonGameState),
+	})
+}
+
+// broadcastMessage sends a message to every connection in the game. It snapshots
+// the connection set under a read lock, then writes without holding any lock so a
+// failed/slow write can never deadlock against the connection mutex.
+func (g *Game) broadcastMessage(msg ws.Message) {
 	g.connections.mu.RLock()
-	defer g.connections.mu.RUnlock()
-	// Make a copy of the connections we need to broadcast to
-	activeConnections := make(map[string]*websocket.Conn)
+	activeConnections := make(map[string]*websocket.Conn, len(g.connections.connections))
 	for playerID, conn := range g.connections.connections {
 		activeConnections[playerID] = conn
 	}
+	g.connections.mu.RUnlock()
 
-	// Broadcast to each connection without holding any locks
+	var failed []string
 	for playerID, conn := range activeConnections {
-		fmt.Println("Broadcasting state to player", playerID, g.state)
-		jsonGameState, err := json.Marshal(g.state)
-		if err != nil {
-			fmt.Println("Failed to marshal state to JSON", err)
-			continue
+		if err := conn.WriteJSON(msg); err != nil {
+			log.Printf("failed to send message to player %s: %v", playerID, err)
+			failed = append(failed, playerID)
 		}
-
-		if err := conn.WriteJSON(ws.Message{
-			Type:    ws.MessageTypeGameState,
-			Payload: json.RawMessage(jsonGameState),
-		}); err != nil {
-			fmt.Println("Failed to send state to player", playerID, err)
-			g.connections.mu.Lock()
-			delete(g.connections.connections, playerID)
-			g.connections.mu.Unlock()
-			continue
-		}
-		fmt.Println("Sent state to player", playerID)
 	}
-	return nil
+
+	if len(failed) > 0 {
+		g.connections.mu.Lock()
+		for _, playerID := range failed {
+			delete(g.connections.connections, playerID)
+		}
+		g.connections.mu.Unlock()
+	}
 }

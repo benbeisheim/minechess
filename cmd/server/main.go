@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -39,16 +38,6 @@ func main() {
 		ExposeHeaders:    "Upgrade",
 	}))
 
-	// Debugging middleware
-	app.Use(func(c *fiber.Ctx) error {
-		fmt.Println("--------------------------------")
-		fmt.Printf("Incoming request to path: %s\n", c.Path())
-		fmt.Printf("Method: %s\n", c.Method())
-		fmt.Printf("Headers: %v\n", c.GetReqHeaders())
-		fmt.Println("--------------------------------")
-		return c.Next()
-	})
-
 	// Initialize services
 	gameManager := service.NewGameManager()
 	gameService := service.NewGameService(gameManager)
@@ -60,7 +49,6 @@ func main() {
 	// Set up WebSocket routes
 	app.Use("/ws/*", middleware.EnsurePlayerID())
 	app.Get("/ws/game/:gameId", websocket.New(func(c *websocket.Conn) {
-		fmt.Printf("WebSocket connection established for game: %s\n", c.Params("gameId"))
 		wsController.HandleConnection(c)
 	}, websocket.Config{
 		ReadBufferSize:  1024,

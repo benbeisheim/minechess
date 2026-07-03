@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"fmt"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -10,17 +10,16 @@ func EnsurePlayerID() fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Check if playerID is already set
 		if c.Locals("playerID") != nil {
-			fmt.Println("Player ID already set:", c.Locals("playerID"))
 			return c.Next()
 		}
 
-		var playerID string
-		// Check header first
-		playerID = c.Get("X-Player-ID")
-		fmt.Println("Player ID from header:", playerID)
+		// Check the header first, then fall back to the query string.
+		// strings.Clone is essential: values returned by c.Get/c.Query point into
+		// fasthttp's reusable request buffer and would be corrupted by later requests
+		// once we retain them in long-lived game state.
+		playerID := strings.Clone(c.Get("X-Player-ID"))
 		if playerID == "" {
-			playerID = c.Query("playerId")
-			fmt.Println("Player ID from query:", playerID)
+			playerID = strings.Clone(c.Query("playerId"))
 		}
 
 		if playerID == "" {
