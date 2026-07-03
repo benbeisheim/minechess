@@ -3,6 +3,7 @@ import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { PieceType, Position } from "../../types/chess";
 import ChessBoard from "../ChessBoard/ChessBoard";
 import PlayerControl from "../PlayerControl/PlayerControl";
+import { DEFAULT_BOARD_COLOR } from "../BoardColor/BoardColor";
 import { GameWebSocket } from "../../services/websocket/gameWebSocket";
 import { useEffect, useState, useRef } from "react";
 import { PlayerColor, BoardColorObj } from "../../types/chess";
@@ -42,11 +43,7 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
     const dispatch = useAppDispatch();
     const gameState = useAppSelector(selectGameState);
     const gameSocket = useRef<GameWebSocket | null>(null);
-    // Set to amber color by default
-    const [selectedColor, setSelectedColor] = useState<BoardColorObj>({
-        light: 'hsl(25, 100%, 89%)',
-        dark: 'hsl(25, 100%, 36%)',
-    });
+    const [selectedColor, setSelectedColor] = useState<BoardColorObj>(DEFAULT_BOARD_COLOR);
 
     useEffect(() => {
         dispatch(setPlayerColor(playerColor));
@@ -72,24 +69,15 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
         }
         
         // If this click would result in a move, send it to the server
-        if (temporaryMove && gameState.board[position.y][position.x] === null && 
-            !gameState.blackKingAttackedSquares.some(square => square.x === position.x && 
+        if (temporaryMove && gameState.board[position.y][position.x] === null &&
+            !gameState.blackKingAttackedSquares.some(square => square.x === position.x &&
                 square.y === position.y) && !gameState.whiteKingAttackedSquares.some(square => square.x === position.x && square.y === position.y)) {
-            console.log("Sending move--------", temporaryMove, promotionPiece, position);
-            if (promotionPiece) {
-                gameSocket.current?.sendMove({
-                    from: temporaryMove.from.position,
-                    to: temporaryMove.to.position,
-                    promotion: promotionPiece,
-                    mine: position
-                });
-            } else {
-                gameSocket.current?.sendMove({
-                    from: temporaryMove.from.position,
-                    to: temporaryMove.to.position,
-                    mine: position
-                });
-            }
+            gameSocket.current?.sendMove({
+                from: temporaryMove.from.position,
+                to: temporaryMove.to.position,
+                mine: position,
+                ...(promotionPiece ? { promotion: promotionPiece } : {}),
+            });
         }
     };
 
@@ -97,30 +85,29 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
         dispatch(selectPromotionPiece(pieceType));
     };
 
+    const bothPlayersPresent =
+        gameState.players.black.name !== "" && gameState.players.white.name !== "";
+
     return (
-        <div className="h-[85vh] aspect-[4/3] grid grid-cols-4 gap-4">
-            <div className="col-span-3 h-full">
+        <div className="mx-auto flex h-[86vh] w-full max-w-[1400px] flex-col gap-4 md:flex-row md:items-stretch">
+            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
                 <ChessBoard
-                    selectedColor = {selectedColor} 
-                    orientation={playerColor} 
-                    onSquareClick={(!gameState.resolve && gameState.players.black.name !== "" && gameState.players.white.name !== "") ? onSquareClick : () => {}} 
-                    handlePromotionClick={handlePromotionClick} 
+                    selectedColor={selectedColor}
+                    orientation={playerColor}
+                    onSquareClick={(!gameState.resolve && bothPlayersPresent) ? onSquareClick : () => {}}
+                    handlePromotionClick={handlePromotionClick}
                 />
             </div>
-            <div className="col-span-1 h-full overflow-y-auto"> 
-                <PlayerControl 
-                    onChangeColor={(color) => {
-                        setSelectedColor(color)
-                    }}
+            <aside className="w-full flex-none md:h-full md:w-[320px]">
+                <PlayerControl
+                    onChangeColor={setSelectedColor}
                     selectedColor={selectedColor}
-                    onResign={() => {}}
-                    onDrawOffer={() => {}}
                     onLeaveGame={() => {
                         handleLeaveGame();
                         gameSocket.current?.disconnect();
                     }}
                 />
-            </div>
+            </aside>
         </div>
     );
     };

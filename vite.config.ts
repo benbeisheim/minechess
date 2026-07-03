@@ -12,4 +12,15 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Split large dependencies into their own chunks so the app code stays
+        // small and vendor bundles can be cached independently across deploys.
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-redux', '@reduxjs/toolkit'],
+        },
+      },
+    },
+  },
 })

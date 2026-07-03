@@ -147,7 +147,6 @@ export function isNoLegalMoves(gameState: GameState) : boolean {
 }
 
 export function makeTemporaryMove(gameState: GameState, temporaryMove: TemporaryMove) : GameState {
-    console.log("temporaryMove making", temporaryMove);
     gameState.boardState.board[temporaryMove.to.position.y][temporaryMove.to.position.x] = gameState.boardState.board[temporaryMove.from.position.y][temporaryMove.from.position.x];
     gameState.boardState.board[temporaryMove.from.position.y][temporaryMove.from.position.x] = null;
     if (temporaryMove.rookMove) {

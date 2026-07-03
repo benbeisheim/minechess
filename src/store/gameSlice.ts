@@ -55,8 +55,7 @@ const gameSlice = createSlice({
         // Local UI state management
         selectSquare(state, action: PayloadAction<{position: Position, playerColor: PlayerColor}>) {
             const { position, playerColor } = action.payload;
-            console.log("selectSquare", position, playerColor);
-            
+
             // Only allow selection if it's the player's turn
             if (state.toMove !== playerColor) {
                 return state;
@@ -76,13 +75,11 @@ const gameSlice = createSlice({
                 state.promotionPiece = null;
             } else if (state.selectedSquare || state.temporaryMove) {
                 if (state.selectedSquare) {
-                    console.log("selectedSquare");
                     // If a square is selected and a legal move is clicked, set the temporary move and remove legalMoves highlighting
-                    if (state.legalMoves.some(move => 
+                    if (state.legalMoves.some(move =>
                         move.x === position.x && move.y === position.y
                     )) {
                         // Clear legalMoves highlighting, selectedSquare remains selected
-                        console.log("setting temporary move");
                         state.legalMoves = [];
                         state.promotionSquare = null;
                         state.temporaryMove = {
@@ -133,7 +130,6 @@ const gameSlice = createSlice({
                         state.promotionSquare = null;
                     } else {
                         // If the square is empty, set the mine
-                        console.log("setting mine", position);
                         state.mine = position;
                         state.temporaryMove = null;
                         state.selectedSquare = null;
@@ -183,7 +179,6 @@ const gameSlice = createSlice({
             return state;
         },
         updateGameState(state, action: PayloadAction<GameState>) {
-            console.log("Updating game state", action.payload, state.toMove);
             if (action.payload.toMove === state.playerColor || action.payload.sound === 'explosion') {
                 soundManager.play(action.payload.sound);
             }

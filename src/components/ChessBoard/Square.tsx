@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { BoardColorObj, Position, PieceData, PlayerColor, PieceType } from '../../types/chess';
 import { Piece } from '../Piece/Piece';
 import { SquareHighlight } from './SquareHighlight';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
-import { RootState } from '../../store';
 import PromotionChoice from '../Piece/PromotionChoice';
 import { selectSquare } from '../../store/gameSlice';
 import { getLandMine } from '../../utils/landMines';
-import { createSelector } from '@reduxjs/toolkit';
-import ExplosionEffect from '../Explosion/Explosion';
+
+// Lazily loaded so the heavy Lottie runtime stays out of the initial bundle.
+const ExplosionEffect = lazy(() => import('../Explosion/Explosion'));
 
 interface SquareProps {
     position: Position;
@@ -37,30 +37,22 @@ const Square: React.FC<SquareProps> = ({
     onSquareClick,
     handlePromotionClick,
 }) => {
-
-    console.log("Square received boardColor:", boardColor);
-
     const dispatch = useAppDispatch();
-    const squareState = useAppSelector(
-        createSelector(
-            (state: RootState) => state.game.boardState.board[position.y][position.x],
-            (state: RootState) => state.game.selectedSquare,
-            (state: RootState) => state.game.legalMoves,
-            (state: RootState) => state.game.promotionSquare,
-            (state: RootState) => state.game.mine,
-            (state: RootState) => state.game.temporaryMove,
-            (state: RootState) => state.game.explosion,
-            (state: RootState) => state.game.lastMine,
-            (state: RootState) => state.game.toMove,
-            (state: RootState) => state.game.blackKingAttackedSquares,
-            (state: RootState) => state.game.whiteKingAttackedSquares,
-            (piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion, lastMine, toMove, 
-                blackKingAttackedSquares, whiteKingAttackedSquares) => 
-                    ({piece, selectedSquare, legalMoves, promotionSquare, mine, temporaryMove, explosion, lastMine, toMove, blackKingAttackedSquares, whiteKingAttackedSquares})
-        )
+    const { x, y } = position;
+
+    // Each selector returns a primitive so this square only re-renders when its
+    // own state changes, rather than on every action that touches the board.
+    const isPromotionSquare = useAppSelector(({ game }) => game.promotionSquare?.x === x && game.promotionSquare?.y === y);
+    const isMineSquare = useAppSelector(({ game }) => game.mine?.x === x && game.mine?.y === y);
+    const isLastMineSquare = useAppSelector(({ game }) => game.lastMine?.x === x && game.lastMine?.y === y);
+    const isExplosionSquare = useAppSelector(({ game }) => game.explosion?.x === x && game.explosion?.y === y);
+    const hasTemporaryMove = useAppSelector(({ game }) => game.temporaryMove !== null);
+    const toMove = useAppSelector(({ game }) => game.toMove);
+    const isKingTargetSquare = useAppSelector(({ game }) =>
+        game.blackKingAttackedSquares.some(square => square.x === x && square.y === y) ||
+        game.whiteKingAttackedSquares.some(square => square.x === x && square.y === y)
     );
 
-    const isPromotionSquare = squareState.promotionSquare && squareState.promotionSquare.x === position.x && squareState.promotionSquare.y === position.y;
     const squareBackgroundColor = isLight ? boardColor.light : boardColor.dark;
 
     // Determine if this square should show labels
@@ -82,20 +74,18 @@ const Square: React.FC<SquareProps> = ({
                 backgroundColor: squareBackgroundColor,
             }}
             data-square={notation}
-            onClick={(isPromotionSquare) ? () => {return} : onSquareClick}
-            onMouseOver={() => {setIsHovered(true)}}
-            onMouseLeave={() => {setIsHovered(false)}}
+            onClick={isPromotionSquare ? undefined : onSquareClick}
+            onMouseOver={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
         >
-            {isHighlighted && <SquareHighlight 
-                size={squareSize} 
-                isPiece={piece !== null} 
-                isLight={isLight} 
-                isTemporaryMove={false} 
-                isLastMine={false} 
+            {isHighlighted && <SquareHighlight
+                size={squareSize}
+                isPiece={piece !== null}
+                isLight={isLight}
+                isTemporaryMove={false}
+                isLastMine={false}
                 />}
-            {isHovered && squareState.temporaryMove && !piece  && 
-            !squareState.blackKingAttackedSquares.some(square => square.x === position.x && square.y === position.y) && 
-            !squareState.whiteKingAttackedSquares.some(square => square.x === position.x && square.y === position.y) &&
+            {isHovered && hasTemporaryMove && !piece && !isKingTargetSquare &&
             <SquareHighlight size={squareSize} isPiece={false} isLight={isLight} isTemporaryMove={true} isLastMine={false} />}
             {!isPromotionSquare && piece && (
                 <Piece 
@@ -109,7 +99,7 @@ const Square: React.FC<SquareProps> = ({
                     }}
                 />
             )}
-            {squareState.lastMine && squareState.lastMine.x === position.x && squareState.lastMine.y === position.y && (orientation !== squareState.toMove || !squareState.temporaryMove) && (
+            {isLastMineSquare && (orientation !== toMove || !hasTemporaryMove) && (
                 <SquareHighlight size={squareSize} isPiece={false} isLight={isLight} isTemporaryMove={true} isLastMine={true} />
             )}
             {isPromotionSquare && ( <PromotionChoice handlePromotionClick={handlePromotionClick} orientation={orientation} /> )}
@@ -121,11 +111,13 @@ const Square: React.FC<SquareProps> = ({
                     {notation[0]} {/* First character of notation is file   */}
                 </div>
             )}
-            {squareState.mine && squareState.mine.x === position.x && squareState.mine.y === position.y && (
+            {isMineSquare && (
                 <img src={getLandMine()} alt="Land Mine" className="w-[70%] h-[70%] z-10" />
             )}
-            {squareState.explosion && squareState.explosion.x === position.x && squareState.explosion.y === position.y && (
-                <ExplosionEffect position={position} size={squareSize}/>
+            {isExplosionSquare && (
+                <Suspense fallback={null}>
+                    <ExplosionEffect position={position} size={squareSize}/>
+                </Suspense>
             )}
             {shouldShowRankLabel && (
                 <div 

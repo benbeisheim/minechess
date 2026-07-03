@@ -1,14 +1,29 @@
 // src/components/TestInterface.tsx
-import { useState } from 'react';
-import ChessGame from '../ChessGame/ChessGame';
+import { lazy, Suspense, useState } from 'react';
 import { PlayerColor } from '../../types/chess';
 import { createGame, joinGame } from '../../services/api';
-import Bombman from '../../components/Bombman/Bombman';
+
+// Lazily loaded so the heavy game/animation code stays out of the initial bundle
+// and the landing page loads fast.
+const ChessGame = lazy(() => import('../ChessGame/ChessGame'));
+const Bombman = lazy(() => import('../../components/Bombman/Bombman'));
 
 export function TestInterface() {
     const [gameID, setGameID] = useState<string | null>(null);
     const [inputGameID, setInputGameID] = useState('');
     const [playerColor, setPlayerColor] = useState<PlayerColor>("white");
+    const [copied, setCopied] = useState(false);
+
+    async function copyGameId() {
+        if (!gameID) return;
+        try {
+            await navigator.clipboard.writeText(gameID);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            // Clipboard access can be denied; fail silently.
+        }
+    }
 
     async function handleCreateGame() {
         try {
@@ -38,15 +53,27 @@ export function TestInterface() {
 
     if (gameID) {
         return (
-            <div className="p-4">
-                <h1 className="text-2xl mb-4 text-gray-800 dark:text-white border-2 border-yellow-500 rounded-md">Game ID: {gameID}</h1>
-                <ChessGame
-                    gameId={gameID}
-                    playerColor={playerColor}
-                    handleLeaveGame={() => {
-                        setGameID(null);
-                    }}
-                />
+            <div className="flex h-full w-full flex-col items-center gap-3 p-4">
+                <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white/70 px-3 py-1.5 text-sm dark:border-white/15 dark:bg-white/5">
+                    <span className="text-gray-500 dark:text-gray-400">Game ID</span>
+                    <code className="font-mono font-semibold text-gray-800 dark:text-white">{gameID}</code>
+                    <button
+                        onClick={copyGameId}
+                        title="Copy game ID"
+                        className="rounded-md bg-gray-800 px-2 py-1 text-xs font-semibold text-white transition hover:bg-gray-700"
+                    >
+                        {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                </div>
+                <Suspense fallback={<div className="text-gray-800 dark:text-white">Loading game…</div>}>
+                    <ChessGame
+                        gameId={gameID}
+                        playerColor={playerColor}
+                        handleLeaveGame={() => {
+                            setGameID(null);
+                        }}
+                    />
+                </Suspense>
             </div>
         );
     }
@@ -59,7 +86,9 @@ export function TestInterface() {
                 </h1>
                 <div className="absolute bottom-0 inset-x-0 h-full pointer-events-none">
                     <div className="h-full aspect-square animate-walk-bounce">
-                        <Bombman />
+                        <Suspense fallback={null}>
+                            <Bombman />
+                        </Suspense>
                     </div>
                 </div>
             </div>

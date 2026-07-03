@@ -1,50 +1,41 @@
-# React + TypeScript + Vite
+# MineChess — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+MineChess is chess with a twist: after every move you secretly place a landmine on
+an empty square. Step onto a live mine with anything but a pawn and the piece is
+destroyed. This package is the React + TypeScript client.
 
-Currently, two official plugins are available:
+## Tech stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 18** + **TypeScript**, bundled with **Vite**
+- **Redux Toolkit** for game state
+- **Tailwind CSS** for styling
+- **react-aria-components** for the board-color picker
+- **lottie-react** for the explosion / bombman animations
+- Realtime play over a **WebSocket** to the Go backend
 
-## Expanding the ESLint configuration
+## Getting started
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+npm install
+npm run dev      # start the Vite dev server
+npm run build    # type-check and produce a production build
+npm run lint     # run ESLint
+npm run preview  # preview the production build
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+The client talks to the backend at the URLs configured in
+[`src/config/environment.ts`](src/config/environment.ts). Override them with the
+`VITE_API_URL` and `VITE_WS_URL` environment variables; they default to
+`http://localhost:3000` and `ws://localhost:3000`.
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+## Project layout
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+| Path | Responsibility |
+| --- | --- |
+| `src/components` | React components (board, pieces, player controls, …) |
+| `src/store` | Redux Toolkit slice, store and typed hooks |
+| `src/gameLogic` | Pure move-generation and rules helpers |
+| `src/services` | REST + WebSocket clients and player identity |
+| `src/utils` | Asset lookups (pieces, sounds, highlights) |
+| `src/types` | Shared TypeScript types |
+</content>

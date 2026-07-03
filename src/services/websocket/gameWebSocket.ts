@@ -36,20 +36,16 @@ export class GameWebSocket {
 
         const playerId = getOrCreatePlayerId();
 
-        console.log(`Attempting to connect to game: ${this.gameId}`);
         this.socket = new WebSocket(`${config.wsUrl}/ws/game/${this.gameId}?playerId=${playerId}`);
 
         this.socket.onopen = () => {
-            console.log('WebSocket connection established');
             this.reconnectAttempts = 0; // Reset attempts on successful connection
             this.reconnectDelay = 1000; // Reset delay
         };
 
         this.socket.onmessage = this.handleMessage.bind(this);
 
-        this.socket.onclose = (event) => {
-            console.log('WebSocket connection closed:', event);
-
+        this.socket.onclose = () => {
             if (!this.isIntentionalClose) {
                 this.handleReconnect();
             }
@@ -63,16 +59,13 @@ export class GameWebSocket {
 
     private handleReconnect() {
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.log('Max reconnection attempts reached');
             return;
         }
 
         this.reconnectAttempts++;
         // Exponential backoff: increase delay with each attempt
         const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-        
-        console.log(`Attempting reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
-        
+
         setTimeout(() => {
             this.connect();
         }, delay);
@@ -101,8 +94,7 @@ export class GameWebSocket {
     private handleMessage(event: MessageEvent) {
         try {
             const message = JSON.parse(event.data);
-            console.log("Received message:", message);
-            
+
             switch (message.type) {
                 case 'gameState':
                     // Update the entire game state from server

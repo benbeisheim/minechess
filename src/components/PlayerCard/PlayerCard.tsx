@@ -1,68 +1,53 @@
 import { RootState } from "../../store";
 import { updateClock } from "../../store/gameSlice";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
-import { Player, PieceData } from "../../types/chess";
+import { Player } from "../../types/chess";
 import Clock from "../Clock/Clock";
 import Graveyard from "../PlayerControl/Graveyard";
 import MaterialCount from "../PlayerControl/MaterialCount";
 
-const PlayerCard: React.FC<{
-    player: Player;
-    orientation: "top" | "bottom";
-}> = ({ player, orientation }) => {
+const PlayerCard: React.FC<{ player: Player }> = ({ player }) => {
     const dispatch = useAppDispatch();
-    const { toMove, resolve, moveHistory, capturedPieces } = useAppSelector((state: RootState) => state.game);
-    const timeLeft = player.timeLeft;
-    const isActive = !resolve && timeLeft > 0 && toMove === player.color && moveHistory.length !== 0;
+    const toMove = useAppSelector((state: RootState) => state.game.toMove);
+    const resolve = useAppSelector((state: RootState) => state.game.resolve);
+    const hasMoved = useAppSelector((state: RootState) => state.game.moveHistory.length !== 0);
+    const capturedPieces = useAppSelector((state: RootState) => state.game.capturedPieces);
 
-    //  Show only the opponent’s pieces that the current player has captured
-    const playerCapturedPieces: PieceData[] =
-        player.color === "white" ? capturedPieces.white : capturedPieces.black;
+    // The clock runs only for the side to move, once the game is under way.
+    const isActive = !resolve && player.timeLeft > 0 && toMove === player.color && hasMoved;
 
-    console.log(`Captured pieces for ${player.color}:`, playerCapturedPieces); // Debugging
+    // Show only the opponent pieces this player has captured.
+    const playerCapturedPieces = player.color === "white" ? capturedPieces.white : capturedPieces.black;
 
     return (
-        <div className="flex-col w-full grid grid-rows-3 justify-center items-center">
-
-            {/* Opponent Player Name + Material Count */}
-            {orientation === "top" && (
-                <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center flex items-center justify-center space-x-2">
-                    <span className="">{player.color || "waiting for opponent..."}</span>
-                    <MaterialCount
-                    
-                        playerColor={player.color} // Pass the player's color
-                    />
+        <div
+            className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 transition ${
+                isActive ? "bg-emerald-500/15 ring-1 ring-emerald-400/50" : "bg-gray-100 dark:bg-white/5"
+            }`}
+        >
+            <div className="flex min-w-0 items-center gap-2">
+                <span
+                    className={`h-4 w-4 flex-none rounded-full border ${
+                        player.color === "white" ? "border-gray-400 bg-white" : "border-gray-600 bg-gray-900"
+                    }`}
+                />
+                <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-semibold capitalize text-gray-800 dark:text-white">
+                            {player.name?.trim() || player.color}
+                        </span>
+                        <MaterialCount playerColor={player.color} />
+                    </div>
+                    <Graveyard capturedPieces={playerCapturedPieces} />
                 </div>
-            )}
-            {orientation === "bottom" && (
-                <Graveyard capturedPieces={playerCapturedPieces}/>
-            )}
+            </div>
             <Clock
-                initialTime={timeLeft}
+                initialTime={player.timeLeft}
                 isRunning={isActive}
-                onTimeUpdate={(time) => {
-                    dispatch(
-                        updateClock({
-                            timeLeft: Math.floor(time),
-                            color: player.color,
-                        })
-                    );
-                }}
+                onTimeUpdate={(time) =>
+                    dispatch(updateClock({ timeLeft: Math.floor(time), color: player.color }))
+                }
             />
-
-            {/* Player Name + Material Count */}
-            {orientation === "bottom" && (
-                <div className="row-span-1 font-bold text-gray-800 dark:text-white w-full text-center flex items-center justify-center space-x-2">
-                    <span>{player.color || "waiting for opponent..."}</span>
-                    <MaterialCount
-                    
-                        playerColor={player.color}
-                    />
-                </div>
-            )}
-            {orientation === "top" && (
-                <Graveyard capturedPieces={playerCapturedPieces}/>
-            )}
         </div>
     );
 };

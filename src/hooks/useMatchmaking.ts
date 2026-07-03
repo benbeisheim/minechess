@@ -28,19 +28,16 @@ export function useMatchmaking() {
   const joinQueue = async () => {
     try {
       // First, join the matchmaking queue via API
-      console.log('joining queue');
       await joinMatchmakingQueue();
-      
+
       const playerId = getOrCreatePlayerId();
       const eventSource = new EventSource(
           `/api/game/matchmaking/events?playerId=${encodeURIComponent(playerId)}`
       );
-      
+
       // Listen for the match event
       eventSource.onmessage = (event) => {
-        console.log('match event received, event data:', event.data);
         const data = JSON.parse(event.data) as MatchFoundEvent;
-        console.log('match event data', data);
         if (data.gameId) {
           setState({
             status: 'matched',

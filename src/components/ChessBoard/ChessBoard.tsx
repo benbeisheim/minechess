@@ -91,9 +91,7 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
 
     // Function to create a coordinate notation for a square
     const getSquareNotation = (position: Position): string => {
-        const files =  FILES;
-        const ranks = RANKS;
-        return `${files[position.x]}${ranks[position.y]}`;
+        return `${FILES[position.x]}${RANKS[position.y]}`;
     };
 
     const isSquareHighlighted = (pos: Position): boolean => {
@@ -145,7 +143,6 @@ const ChessBoard: React.FC<ChessBoardProps> = ({
             />
         );
     };
-    //dumb 
 
     return (
         <div ref={containerRef}>

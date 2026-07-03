@@ -38,28 +38,28 @@ const groupCapturedPieces = (capturedPieces: PieceData[]) => {
 const Graveyard: React.FC<GraveyardProps> = ({ capturedPieces }) => {
     const groupedPieces = groupCapturedPieces(capturedPieces);
 
+    if (capturedPieces.length === 0) {
+        return <div className="h-5 text-xs text-gray-400 dark:text-gray-600">—</div>;
+    }
+
     return (
-        <div className="graveyard flex flex-wrap space-x-1 justify-center dark:text-white">
-            {capturedPieces.length > 0 ? (
-                Object.entries(groupedPieces).map(([type, { icon, count }]) =>
-                    count > 0 ? (
-                        <span key={type} className="flex items-center">
-                            {type === "pawn" && count > 1 ? (
-                                <>
-                                    <span className="text-2xl">{icon}</span>
-                                    <span className="text-sm dark:text-white">x{count}</span>
-                                </>
-                            ) : (
-                                // Display multiple icons for other pieces
-                                [...Array(count)].map((_, i) => (
-                                    <span key={i} className="text-2xl">{icon}</span>
-                                ))
-                            )}
-                        </span>
-                    ) : null
-                )
-            ) : (
-                <span className="text-gray-500">No captured pieces</span>
+        <div className="flex flex-wrap items-center gap-0.5 leading-none text-gray-700 dark:text-gray-200">
+            {Object.entries(groupedPieces).map(([type, { icon, count }]) =>
+                count > 0 ? (
+                    <span key={type} className="flex items-center">
+                        {type === "pawn" && count > 1 ? (
+                            <>
+                                <span className="text-lg">{icon}</span>
+                                <span className="text-xs">x{count}</span>
+                            </>
+                        ) : (
+                            // Display multiple icons for other pieces
+                            [...Array(count)].map((_, i) => (
+                                <span key={i} className="text-lg">{icon}</span>
+                            ))
+                        )}
+                    </span>
+                ) : null
             )}
         </div>
     );

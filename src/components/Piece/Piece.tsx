@@ -17,57 +17,45 @@ const selectToMove = (state: RootState) => state.game.toMove;
 
 export const Piece: React.FC<PieceProps> = ({ type, color, size, isSelected, onDragStart }) => {
     const pieceImage = getPieceImage(color, type);
-    // State to track if we're dragging and the current position
+    // Track whether we're dragging and the drag offset from the piece's origin.
     const [isDragging, setIsDragging] = useState(false);
     const [position, setPosition] = useState({ x: 0, y: 0 });
-    const toMove  = useAppSelector(selectToMove);
-    
-    // Reference to the piece element for getting its initial position
+    const toMove = useAppSelector(selectToMove);
+
     const pieceRef = useRef<HTMLDivElement>(null);
-    const pieceRect = pieceRef.current?.getBoundingClientRect();
-
-    const dragStart = useRef(performance.now());
-
+    // Origin rect and start time captured once when a drag begins.
+    const originRect = useRef<DOMRect | null>(null);
+    const dragStart = useRef(0);
 
     useEffect(() => {
-        // Function to handle mouse movement during drag
+        if (!isDragging) return;
+
+        // Center the piece on the cursor relative to where the drag started.
         const handleMouseMove = (e: MouseEvent) => {
-            if (!isDragging || !pieceRef.current) return;            
-            // Update position to center the piece on the cursor
+            const rect = originRect.current;
+            if (!rect) return;
             setPosition({
-                x: e.clientX - pieceRect!.x - pieceRect!.width / 2,
-                y: e.clientY - pieceRect!.y - pieceRect!.height / 2
+                x: e.clientX - rect.x - rect.width / 2,
+                y: e.clientY - rect.y - rect.height / 2,
             });
         };
 
-        // Function to handle mouse up (end of drag)
         const handleMouseUp = (e: MouseEvent) => {
-            if (isDragging) {
-                // Find the square element under the cursor
-                const elementsAtPoint = document.elementsFromPoint(e.clientX, e.clientY);
-                const squareElement = elementsAtPoint.find(element => 
-                    element.hasAttribute('data-square')
-                );
+            // Treat a drag longer than 150ms as a drop: click the square underneath.
+            const squareElement = document
+                .elementsFromPoint(e.clientX, e.clientY)
+                .find(element => element.hasAttribute('data-square'));
 
-                // If we found a square, simulate a click on it
-                if (squareElement && performance.now() - dragStart.current > 150) {
-                    console.log("Clicking on square", squareElement);
-                    (squareElement as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                }
-
-                setIsDragging(false);
-                setPosition({ x: 0, y: 0 });
+            if (squareElement && performance.now() - dragStart.current > 150) {
+                (squareElement as HTMLElement).dispatchEvent(new MouseEvent('click', { bubbles: true }));
             }
+
+            setIsDragging(false);
+            setPosition({ x: 0, y: 0 });
         };
 
-        // Add event listeners when dragging starts
-        if (isDragging) {
-            console.log("Adding event listeners for dragging");
-            document.addEventListener('mousemove', handleMouseMove);
-            document.addEventListener('mouseup', handleMouseUp);
-        }
-
-        // Clean up event listeners
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
         return () => {
             document.removeEventListener('mousemove', handleMouseMove);
             document.removeEventListener('mouseup', handleMouseUp);
@@ -75,12 +63,11 @@ export const Piece: React.FC<PieceProps> = ({ type, color, size, isSelected, onD
     }, [isDragging]);
 
     const handleMouseDown = () => {
-        if (color === toMove) {
-            console.log("Dragging piece");
-            dragStart.current = performance.now();
-            onDragStart();
-            setIsDragging(true);
-        }
+        if (color !== toMove) return;
+        originRect.current = pieceRef.current?.getBoundingClientRect() ?? null;
+        dragStart.current = performance.now();
+        onDragStart();
+        setIsDragging(true);
     };
 
     return (

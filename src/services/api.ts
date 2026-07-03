@@ -1,36 +1,28 @@
 import { config } from '../config/environment';
 import { getOrCreatePlayerId } from './playerIdentification';
 export async function createGame() {
-    const playerId = getOrCreatePlayerId();
-    console.log('createGame fetching from config.apiUrl:', `${config.apiUrl}/api/game/create`);
     const response = await fetch(`${config.apiUrl}/api/game/create`, {
         method: 'POST',
         credentials: 'include',
         headers: {
-            'X-Player-ID': playerId,
+            'X-Player-ID': getOrCreatePlayerId(),
         },
     });
-    console.log('createGame response', response);
-    const data = await response.json();
-    console.log('createGame data', data);
-    return data;
+    return response.json();
 }
 
 export async function joinGame(gameId: string) {
-    const playerId = getOrCreatePlayerId();
     const response = await fetch(`${config.apiUrl}/api/game/join/${gameId}`, {
         method: 'POST',
         credentials: 'include',
         headers: {
-            'X-Player-ID': playerId,
+            'X-Player-ID': getOrCreatePlayerId(),
         },
     });
-    const data = await response.json();
-    return data;
+    return response.json();
 }
 
 export async function joinMatchmakingQueue(): Promise<void> {
-    console.log('joinMatchmakingQueue fetching from config.apiUrl:', `${config.apiUrl}/api/game/matchmaking/join`);
     const response = await fetch(`${config.apiUrl}/api/game/matchmaking/join`, {
         method: 'POST',
         credentials: 'include',
@@ -41,7 +33,6 @@ export async function joinMatchmakingQueue(): Promise<void> {
     });
 
     if (!response.ok) {
-        console.log('joinMatchmakingQueue error response', response);
         const error = await response.json();
         throw new Error(error.message || 'Failed to join matchmaking queue');
     }
