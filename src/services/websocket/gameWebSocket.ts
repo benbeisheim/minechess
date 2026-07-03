@@ -2,7 +2,7 @@
 // Define types for our WebSocket messages
 
 import { AppDispatch } from "../../store";
-import { updateGameState } from "../../store/gameSlice";
+import { updateGameState, setOpponentLeft } from "../../store/gameSlice";
 import { WSMove } from "../../types/chess";
 import { config } from "../../config/environment";
 import { getOrCreatePlayerId } from "../playerIdentification";
@@ -100,7 +100,11 @@ export class GameWebSocket {
                     // Update the entire game state from server
                     this.dispatch(updateGameState(message.payload));
                     break;
-                    
+
+                case 'opponentLeft':
+                    this.dispatch(setOpponentLeft(true));
+                    break;
+
                 default:
                     console.error('Unknown message type:', message.type);
             }

@@ -1,8 +1,9 @@
-import { selectPromotionPiece, selectSquare, setPlayerColor, setPromotionSquare } from "../../store/gameSlice";
+import { selectPromotionPiece, selectSquare, setOpponentLeft, setPlayerColor, setPromotionSquare } from "../../store/gameSlice";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { PieceType, Position } from "../../types/chess";
 import ChessBoard from "../ChessBoard/ChessBoard";
 import PlayerControl from "../PlayerControl/PlayerControl";
+import OpponentLeft from "../OpponentLeft/OpponentLeft";
 import { DEFAULT_BOARD_COLOR } from "../BoardColor/BoardColor";
 import { GameWebSocket } from "../../services/websocket/gameWebSocket";
 import { useEffect, useState, useRef } from "react";
@@ -42,17 +43,24 @@ const selectGameState = createSelector(
 const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveGame }) => {
     const dispatch = useAppDispatch();
     const gameState = useAppSelector(selectGameState);
+    const opponentLeft = useAppSelector((state: RootState) => state.game.opponentLeft);
     const gameSocket = useRef<GameWebSocket | null>(null);
     const [selectedColor, setSelectedColor] = useState<BoardColorObj>(DEFAULT_BOARD_COLOR);
 
     useEffect(() => {
         dispatch(setPlayerColor(playerColor));
+        dispatch(setOpponentLeft(false)); // clear any stale flag from a previous game
         gameSocket.current = new GameWebSocket(gameId, dispatch);
-        
+
         return () => {
             gameSocket.current?.disconnect();
         };
     }, [gameId, dispatch]);
+
+    const leaveGame = () => {
+        gameSocket.current?.disconnect();
+        handleLeaveGame();
+    };
 
     const onSquareClick = (position: Position) => {
         const selectedSquare = gameState.selectedSquare;
@@ -89,8 +97,11 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
         gameState.players.black.name !== "" && gameState.players.white.name !== "";
 
     return (
-        <div className="mx-auto flex h-[86vh] w-full max-w-[1400px] flex-col gap-4 md:flex-row md:items-stretch">
-            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+        <div className="mx-auto flex h-[86vh] flex-col items-center gap-4 md:flex-row md:items-stretch">
+            {opponentLeft && <OpponentLeft onExit={leaveGame} />}
+            {/* Board wrapper is a square sized to the panel height on desktop so it sits
+                flush against the controls; on mobile it flexes to the available column space. */}
+            <div className="flex w-full min-h-0 flex-1 items-center justify-center md:aspect-square md:h-full md:w-auto md:flex-none">
                 <ChessBoard
                     selectedColor={selectedColor}
                     orientation={playerColor}
@@ -102,10 +113,7 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
                 <PlayerControl
                     onChangeColor={setSelectedColor}
                     selectedColor={selectedColor}
-                    onLeaveGame={() => {
-                        handleLeaveGame();
-                        gameSocket.current?.disconnect();
-                    }}
+                    onLeaveGame={leaveGame}
                 />
             </aside>
         </div>

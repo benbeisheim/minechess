@@ -40,7 +40,8 @@ const initialState: GameState = {
     lastMove: null,
     explosion: null,
     blackKingAttackedSquares: [],
-    whiteKingAttackedSquares: []
+    whiteKingAttackedSquares: [],
+    opponentLeft: false
 };
 
 // Create the slice
@@ -178,6 +179,9 @@ const gameSlice = createSlice({
             state.playerColor = action.payload;
             return state;
         },
+        setOpponentLeft(state, action: PayloadAction<boolean>) {
+            state.opponentLeft = action.payload;
+        },
         updateGameState(state, action: PayloadAction<GameState>) {
             if (action.payload.toMove === state.playerColor || action.payload.sound === 'explosion') {
                 soundManager.play(action.payload.sound);
@@ -192,5 +196,5 @@ const gameSlice = createSlice({
 });
 
 // Export actions and reducer
-export const { selectSquare, initializeBoard, updateClock, updateGameState, setPromotionSquare, selectPromotionPiece, setPlayerColor } = gameSlice.actions;
+export const { selectSquare, initializeBoard, updateClock, updateGameState, setPromotionSquare, selectPromotionPiece, setPlayerColor, setOpponentLeft } = gameSlice.actions;
 export default gameSlice.reducer;
