@@ -1,0 +1,219 @@
+// src/components/TestInterface.tsx
+import { lazy, Suspense, useState } from 'react';
+import { PlayerColor } from '../../types/chess';
+import { createGame, joinGame, createBotGame, BotDifficulty } from '../../services/api';
+
+// Lazily loaded so the heavy game/animation code stays out of the initial bundle
+// and the landing page loads fast.
+const ChessGame = lazy(() => import('../ChessGame/ChessGame'));
+const Bombman = lazy(() => import('../../components/Bombman/Bombman'));
+
+const BOT_LEVELS: { label: string; difficulty: BotDifficulty }[] = [
+    { label: 'Easy', difficulty: 0 },
+    { label: 'Medium', difficulty: 1 },
+    { label: 'Hard', difficulty: 2 },
+];
+
+export function TestInterface() {
+    const [gameID, setGameID] = useState<string | null>(null);
+    const [inputGameID, setInputGameID] = useState('');
+    const [playerColor, setPlayerColor] = useState<PlayerColor>("white");
+    const [opponentLabel, setOpponentLabel] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    async function copyGameId() {
+        if (!gameID) return;
+        try {
+            await navigator.clipboard.writeText(gameID);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            // Clipboard access can be denied; fail silently.
+        }
+    }
+
+    async function handleCreateGame() {
+        try {
+            const createData = await createGame();
+            const newGameID = createData.game_id;
+            if (!newGameID) {
+                throw new Error('No game ID received from server');
+            }
+            const joinData = await joinGame(newGameID);
+            setPlayerColor(joinData.color as PlayerColor);
+            setOpponentLabel(null);
+            setGameID(newGameID);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function handleJoinGame(e: React.FormEvent) {
+        e.preventDefault();
+        try {
+            const joinData = await joinGame(inputGameID);
+            setPlayerColor(joinData.color as PlayerColor);
+            setOpponentLabel(null);
+            setGameID(inputGameID);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function handlePlayBot(label: string, difficulty: BotDifficulty) {
+        try {
+            const data = await createBotGame(difficulty);
+            if (!data.game_id) {
+                throw new Error('No game ID received from server');
+            }
+            setPlayerColor(data.color as PlayerColor);
+            setOpponentLabel(`Bot · ${label}`);
+            setGameID(data.game_id);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    if (gameID) {
+        return (
+            <div className="flex h-full w-full flex-col items-center gap-3 p-4">
+                <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white/70 px-3 py-1.5 text-sm dark:border-white/15 dark:bg-white/5">
+                    <span className="text-gray-500 dark:text-gray-400">Game ID</span>
+                    <code className="font-mono font-semibold text-gray-800 dark:text-white">{gameID}</code>
+                    <button
+                        onClick={copyGameId}
+                        title="Copy game ID"
+                        className="rounded-md bg-gray-800 px-2 py-1 text-xs font-semibold text-white transition hover:bg-gray-700"
+                    >
+                        {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                </div>
+                <Suspense fallback={<div className="text-gray-800 dark:text-white">Loading game…</div>}>
+                    <ChessGame
+                        gameId={gameID}
+                        playerColor={playerColor}
+                        opponentLabel={opponentLabel}
+                        handleLeaveGame={() => {
+                            setGameID(null);
+                        }}
+                    />
+                </Suspense>
+            </div>
+        );
+    }
+    return (
+        <div className="h-screen flex flex-col py-4 overflow-hidden">
+            {/* Header with Bombman walking behind */}
+            <div className="relative flex-none mb-2" style={{ containerType: 'inline-size' }}>
+                <h1 className="relative z-10 text-6xl md:text-7xl font-bold text-center text-gray-800 dark:text-white">
+                    MineChess
+                </h1>
+                <div className="absolute bottom-0 inset-x-0 h-full pointer-events-none">
+                    <div className="h-full aspect-square animate-walk-bounce">
+                        <Suspense fallback={null}>
+                            <Bombman />
+                        </Suspense>
+                    </div>
+                </div>
+            </div>
+            {/* Game Controls */}
+            <div className="relative z-10 mx-auto mb-3 w-full max-w-md flex-none space-y-3 px-4">
+                {/* Play the computer */}
+                <div className="rounded-2xl border border-gray-300 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Play the computer
+                    </h2>
+                    <div className="grid grid-cols-3 gap-2">
+                        {BOT_LEVELS.map(({ label, difficulty }) => (
+                            <button
+                                key={label}
+                                onClick={() => handlePlayBot(label, difficulty)}
+                                className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600"
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Play a friend */}
+                <div className="rounded-2xl border border-gray-300 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Play a friend
+                    </h2>
+                    <button
+                        onClick={handleCreateGame}
+                        className="mb-3 w-full rounded-md bg-green-500 px-4 py-2 font-semibold text-white transition hover:bg-green-600"
+                    >
+                        Create new game
+                    </button>
+                    <form onSubmit={handleJoinGame} className="flex gap-2">
+                        <input
+                            type="text"
+                            value={inputGameID}
+                            onChange={(e) => setInputGameID(e.target.value)}
+                            placeholder="Enter Game ID"
+                            className="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 dark:border-white/15 dark:bg-white/10 dark:text-white"
+                        />
+                        <button
+                            type="submit"
+                            className="rounded-md bg-blue-500 px-4 py-2 font-semibold text-white transition hover:bg-blue-600"
+                        >
+                            Join
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            {/* MineChess Rules Section */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6 bg-gray-700/75 text-white rounded-2xl shadow-lg relative z-10">
+                <h2 className="text-lg md:text-2xl font-bold mb-3">
+                    MineChess Rules
+                </h2>
+                <ol className="list-decimal list-inside space-y-2 text-sm md:text-base">
+                    <li>
+                        <strong>Standard Chess Rules:</strong>
+                        <ul className="list-disc ml-6">
+                            <li>All standard chess rules, pieces, and board setup apply.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Mine Placement:</strong>
+                        <ul className="list-disc ml-6 space-y-1">
+                            <li>After each move, the player places one hidden mine on any unoccupied square.</li>
+                            <li>Mines last one turn, expiring after the opponent completes their next move.</li>
+                            <li>Mines cannot be placed on squares either king can currently move to.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Mine Activation:</strong>
+                        <ul className="list-disc ml-6 space-y-1">
+                            <li>Any piece except a pawn that moves onto a mined square is immediately captured.</li>
+                            <li>Pawns are immune to mines.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Mine Visibility:</strong>
+                        <ul className="list-disc ml-6 space-y-1">
+                            <li>Mines are hidden from the opponent until they expire.</li>
+                            <li>Expired mine locations are shown with a crosshair icon.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Winning the Game:</strong>
+                        <ul className="list-disc ml-6 space-y-1">
+                            <li>Standard win/draw conditions apply: checkmate, stalemate, or time control.</li>
+                            <li>
+                                The game can also be won by Bombmate, where:
+                                <ol className="list-lower-alpha pl-8 space-y-1">
+                                    <li>a. A pinned piece moves onto a mined square.</li>
+                                    <li>b. A piece blocks a check on a mined square.</li>
+                                </ol>
+                            </li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+        </div>
+    );
+}
