@@ -1,0 +1,21 @@
+# Web server
+fastapi==0.139.0
+uvicorn==0.50.0
+
+# Chess + engine
+python-chess==1.999
+stockfish==5.2.0
+
+# Maia model
+maia2==0.9
+
+# maia2 runtime deps (not declared by the maia2==0.9 package)
+torch==2.12.1
+numpy==2.5.0
+pandas==3.0.3
+einops==0.8.2
+gdown==6.1.0
+pyzstd==0.19.1
+pyyaml==6.0.3
+requests==2.34.2
+tqdm==4.68.3
