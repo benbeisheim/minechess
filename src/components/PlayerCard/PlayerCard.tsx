@@ -17,7 +17,7 @@ const WaitingDots: React.FC = () => {
     return <span className="inline-block w-3 text-left">{".".repeat(count)}</span>;
 };
 
-const PlayerCard: React.FC<{ player: Player }> = ({ player }) => {
+const PlayerCard: React.FC<{ player: Player; label?: string }> = ({ player, label }) => {
     const dispatch = useAppDispatch();
     const toMove = useAppSelector((state: RootState) => state.game.toMove);
     const resolve = useAppSelector((state: RootState) => state.game.resolve);
@@ -55,7 +55,7 @@ const PlayerCard: React.FC<{ player: Player }> = ({ player }) => {
                             </span>
                         ) : (
                             <span className="truncate text-sm font-semibold text-gray-800 dark:text-white">
-                                {isSelf ? "You" : "Opponent"}
+                                {isSelf ? "You" : (label ?? "Opponent")}
                             </span>
                         )}
                         <MaterialCount playerColor={player.color} />

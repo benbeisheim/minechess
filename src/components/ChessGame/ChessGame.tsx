@@ -15,6 +15,7 @@ interface ChessGameProps {
     gameId: string;
     playerColor: PlayerColor;
     handleLeaveGame: () => void;
+    opponentLabel?: string | null;
 }
 
 const selectGameState = createSelector(
@@ -40,7 +41,7 @@ const selectGameState = createSelector(
     })
 );
 
-const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveGame }) => {
+const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveGame, opponentLabel }) => {
     const dispatch = useAppDispatch();
     const gameState = useAppSelector(selectGameState);
     const opponentLeft = useAppSelector((state: RootState) => state.game.opponentLeft);
@@ -114,6 +115,7 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
                     onChangeColor={setSelectedColor}
                     selectedColor={selectedColor}
                     onLeaveGame={leaveGame}
+                    opponentLabel={opponentLabel}
                 />
             </aside>
         </div>

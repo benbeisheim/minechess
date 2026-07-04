@@ -1,17 +1,24 @@
 // src/components/TestInterface.tsx
 import { lazy, Suspense, useState } from 'react';
 import { PlayerColor } from '../../types/chess';
-import { createGame, joinGame } from '../../services/api';
+import { createGame, joinGame, createBotGame, BotDifficulty } from '../../services/api';
 
 // Lazily loaded so the heavy game/animation code stays out of the initial bundle
 // and the landing page loads fast.
 const ChessGame = lazy(() => import('../ChessGame/ChessGame'));
 const Bombman = lazy(() => import('../../components/Bombman/Bombman'));
 
+const BOT_LEVELS: { label: string; difficulty: BotDifficulty }[] = [
+    { label: 'Easy', difficulty: 0 },
+    { label: 'Medium', difficulty: 1 },
+    { label: 'Hard', difficulty: 2 },
+];
+
 export function TestInterface() {
     const [gameID, setGameID] = useState<string | null>(null);
     const [inputGameID, setInputGameID] = useState('');
     const [playerColor, setPlayerColor] = useState<PlayerColor>("white");
+    const [opponentLabel, setOpponentLabel] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
     async function copyGameId() {
@@ -34,6 +41,7 @@ export function TestInterface() {
             }
             const joinData = await joinGame(newGameID);
             setPlayerColor(joinData.color as PlayerColor);
+            setOpponentLabel(null);
             setGameID(newGameID);
         } catch (err) {
             console.error(err);
@@ -45,7 +53,22 @@ export function TestInterface() {
         try {
             const joinData = await joinGame(inputGameID);
             setPlayerColor(joinData.color as PlayerColor);
+            setOpponentLabel(null);
             setGameID(inputGameID);
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    async function handlePlayBot(label: string, difficulty: BotDifficulty) {
+        try {
+            const data = await createBotGame(difficulty);
+            if (!data.game_id) {
+                throw new Error('No game ID received from server');
+            }
+            setPlayerColor(data.color as PlayerColor);
+            setOpponentLabel(`Bot · ${label}`);
+            setGameID(data.game_id);
         } catch (err) {
             console.error(err);
         }
@@ -69,6 +92,7 @@ export function TestInterface() {
                     <ChessGame
                         gameId={gameID}
                         playerColor={playerColor}
+                        opponentLabel={opponentLabel}
                         handleLeaveGame={() => {
                             setGameID(null);
                         }}
@@ -93,39 +117,52 @@ export function TestInterface() {
                 </div>
             </div>
             {/* Game Controls */}
-            <div className="mb-3 text-center flex-none relative z-10">
-                <button
-                    onClick={handleCreateGame}
-                    className="w-[40vw] max-w-xs px-[2.5vw] py-[1vw] bg-green-500 text-white rounded-md text-base md:text-lg hover:bg-green-600 transition"
-                >
-                    Create New Game
-                </button>
-
-                <div className="flex items-center justify-center gap-4 my-3">
-                    <div className="h-px w-16 bg-gray-400 dark:bg-gray-500"></div>
-                    <span className="text-gray-500 dark:text-gray-400 text-sm">or</span>
-                    <div className="h-px w-16 bg-gray-400 dark:bg-gray-500"></div>
+            <div className="relative z-10 mx-auto mb-3 w-full max-w-md flex-none space-y-3 px-4">
+                {/* Play the computer */}
+                <div className="rounded-2xl border border-gray-300 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Play the computer
+                    </h2>
+                    <div className="grid grid-cols-3 gap-2">
+                        {BOT_LEVELS.map(({ label, difficulty }) => (
+                            <button
+                                key={label}
+                                onClick={() => handlePlayBot(label, difficulty)}
+                                className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600"
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
-                <form
-                    onSubmit={handleJoinGame}
-                    className="flex justify-center items-center gap-3"
-                >
-                    <input
-                        type="text"
-                        value={inputGameID}
-                        onChange={(e) => setInputGameID(e.target.value)}
-                        placeholder="Enter Game ID"
-                        style={{ color: 'white' }}
-                        className="w-[40vw] max-w-xs px-[2.5vw] py-[1vw] border border-white-300 rounded-md text-sm md:text-base"
-                    />
+                {/* Play a friend */}
+                <div className="rounded-2xl border border-gray-300 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
+                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        Play a friend
+                    </h2>
                     <button
-                        type="submit"
-                        className="w-[40vw] max-w-xs px-[2.5vw] py-[1vw] bg-blue-500 text-white rounded-md text-base md:text-lg hover:bg-blue-600 transition"
+                        onClick={handleCreateGame}
+                        className="mb-3 w-full rounded-md bg-green-500 px-4 py-2 font-semibold text-white transition hover:bg-green-600"
                     >
-                        Join Game
+                        Create new game
                     </button>
-                </form>
+                    <form onSubmit={handleJoinGame} className="flex gap-2">
+                        <input
+                            type="text"
+                            value={inputGameID}
+                            onChange={(e) => setInputGameID(e.target.value)}
+                            placeholder="Enter Game ID"
+                            className="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 dark:border-white/15 dark:bg-white/10 dark:text-white"
+                        />
+                        <button
+                            type="submit"
+                            className="rounded-md bg-blue-500 px-4 py-2 font-semibold text-white transition hover:bg-blue-600"
+                        >
+                            Join
+                        </button>
+                    </form>
+                </div>
             </div>
 
             {/* MineChess Rules Section */}
