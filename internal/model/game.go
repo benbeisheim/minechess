@@ -27,6 +27,11 @@ type Game struct {
 	mine        *Position
 	whiteClock  *Clock
 	blackClock  *Clock
+
+	// Single-player bot metadata. isBot is false for normal PvP games.
+	isBot         bool
+	botColor      string
+	botDifficulty int
 }
 
 type GameState struct {

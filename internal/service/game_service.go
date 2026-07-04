@@ -32,6 +32,10 @@ func (gs *GameService) CreateGame() (string, error) {
 	return gameID, nil
 }
 
+func (gs *GameService) CreateBotGame(playerID string, difficulty int) (string, model.PlayerColor, error) {
+	return gs.gameManager.CreateBotGame(playerID, difficulty)
+}
+
 func (gs *GameService) JoinMatchmaking(playerID string) error {
 	return gs.gameManager.JoinMatchmaking(playerID)
 }

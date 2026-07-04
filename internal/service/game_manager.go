@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/benbeisheim/minechess-backend/internal/bot"
 	"github.com/benbeisheim/minechess-backend/internal/model"
 	"github.com/gofiber/websocket/v2"
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ type GameManager struct {
 	games            map[string]*model.Game
 	queue            *model.Queue
 	matchingChannels map[string]chan string
+	botClient        *bot.Client
 	mu               sync.RWMutex
 }
 
@@ -138,6 +140,7 @@ func NewGameManager() *GameManager {
 		games:            make(map[string]*model.Game),
 		queue:            model.NewQueue(),
 		matchingChannels: make(map[string]chan string),
+		botClient:        bot.NewClient(),
 	}
 
 	// Start matchmaking processor
@@ -205,15 +208,66 @@ func (gm *GameManager) GetGameState(gameID string) (model.GameState, error) {
 }
 
 func (gm *GameManager) MakeMove(gameID string, playerID string, move model.WSMove) error {
-	gm.mu.Lock()
-	defer gm.mu.Unlock()
-
+	gm.mu.RLock()
 	game, exists := gm.games[gameID]
+	gm.mu.RUnlock()
+
 	if !exists {
 		return errors.New("game not found")
 	}
 
-	return game.MakeMove(move)
+	if err := game.MakeMove(move); err != nil {
+		return err
+	}
+
+	// In a bot game, respond asynchronously once the human's move lands.
+	if difficulty, ok := game.BotShouldMove(); ok {
+		go gm.playBotMove(game, difficulty)
+	}
+	return nil
+}
+
+func (gm *GameManager) CreateBotGame(playerID string, difficulty int) (string, model.PlayerColor, error) {
+	gm.mu.Lock()
+	defer gm.mu.Unlock()
+
+	gameID := uuid.New().String()
+	game := model.NewGame(gameID)
+
+	humanColor, err := game.AddPlayer(playerID)
+	if err != nil {
+		return "", "", err
+	}
+	botColor, err := game.AddPlayer("bot")
+	if err != nil {
+		return "", "", err
+	}
+	game.EnableBot(string(botColor), difficulty)
+
+	gm.games[gameID] = game
+	return gameID, humanColor, nil
+}
+
+// playBotMove fetches the bot's reply and applies it. It runs in its own goroutine
+// so slow inference never blocks the human's request or the WebSocket loop.
+func (gm *GameManager) playBotMove(game *model.Game, difficulty int) {
+	// A small pause keeps the bot from replying instantly on the fallback path.
+	time.Sleep(600 * time.Millisecond)
+
+	suggestion, err := gm.botClient.GetMove(game.FEN(), difficulty)
+	if err != nil {
+		// BotMove falls back to a random legal move and a locally chosen mine.
+		log.Printf("bot: move service unavailable, using a random legal move: %v", err)
+		suggestion = bot.Suggestion{}
+	}
+
+	move, ok := game.BotMove(suggestion.Move, suggestion.Mine)
+	if !ok {
+		return // No legal moves: the game is already over.
+	}
+	if err := game.MakeMove(move); err != nil {
+		log.Printf("bot: failed to apply move %+v: %v", move, err)
+	}
 }
 
 func (gm *GameManager) RegisterConnection(gameID string, playerID string, conn *websocket.Conn) error {

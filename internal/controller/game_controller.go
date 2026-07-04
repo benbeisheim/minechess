@@ -31,6 +31,29 @@ func (gc *GameController) CreateGame(c *fiber.Ctx) error {
 	})
 }
 
+func (gc *GameController) CreateBotGame(c *fiber.Ctx) error {
+	playerID := c.Locals("playerID").(string)
+	difficulty := c.QueryInt("difficulty", 0)
+	if difficulty < 0 || difficulty > 2 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "difficulty must be 0 (easy), 1 (medium) or 2 (hard)",
+		})
+	}
+
+	gameID, color, err := gc.gameService.CreateBotGame(playerID, difficulty)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Bot game created",
+		"game_id": gameID,
+		"color":   color,
+	})
+}
+
 func (gc *GameController) JoinGame(c *fiber.Ctx) error {
 	gameID := c.Params("gameId")
 	playerID := c.Locals("playerID").(string)

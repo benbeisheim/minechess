@@ -64,6 +64,7 @@ func main() {
 	gameRoutes := api.Group("/game")
 	gameRoutes.Post("/matchmaking/join", gameController.JoinMatchmaking)
 	gameRoutes.Post("/create", gameController.CreateGame)
+	gameRoutes.Post("/bot", gameController.CreateBotGame)
 	gameRoutes.Post("/join/:gameId", gameController.JoinGame)
 	gameRoutes.Get("/:gameId", gameController.GetGameState)
 	gameRoutes.Get("/matchmaking/events", gameController.HandleMatchmakingEvents)
