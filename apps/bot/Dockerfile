@@ -3,7 +3,8 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y stockfish && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-COPY maia2_models/ maia2_models/
+ENV PATH="/usr/games:${PATH}"
+RUN python -c "from maia2 import model; model.from_pretrained(type='rapid', device='cpu')"
 COPY . .
 RUN useradd app
 USER app
