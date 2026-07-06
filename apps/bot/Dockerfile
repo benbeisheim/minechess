@@ -8,4 +8,4 @@ RUN python -c "from maia2 import model; model.from_pretrained(type='rapid', devi
 COPY . .
 RUN useradd app && chown -R app:app /app
 USER app
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "main:app", "--host", "::", "--port", "8080"]
