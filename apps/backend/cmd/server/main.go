@@ -69,5 +69,7 @@ func main() {
 	gameRoutes.Get("/:gameId", gameController.GetGameState)
 	gameRoutes.Get("/matchmaking/events", gameController.HandleMatchmakingEvents)
 
-	log.Fatal(app.Listen(":3000"))
+	// Listen on the port the platform assigned (Railway et al. inject PORT); the
+	// hardcoded :3000 meant the container never answered on the expected port.
+	log.Fatal(app.Listen(":" + port))
 }

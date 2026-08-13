@@ -12,9 +12,32 @@ import (
 	"github.com/gofiber/websocket/v2"
 )
 
+// writeTimeout bounds a single frame write, so one wedged client cannot stall the
+// game's broadcasts. A connection that trips it is dropped.
+const writeTimeout = 10 * time.Second
+
+// gameConn wraps a client connection with its own write mutex. The websocket
+// library supports only one concurrent writer per connection, and state
+// broadcasts, "opponent left" notices and per-move errors are all produced by
+// different goroutines.
+type gameConn struct {
+	conn *websocket.Conn
+	mu   sync.Mutex
+}
+
+func (c *gameConn) writeJSON(v any) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if err := c.conn.SetWriteDeadline(time.Now().Add(writeTimeout)); err != nil {
+		return err
+	}
+	return c.conn.WriteJSON(v)
+}
+
 // The connections for a specific game
 type GameConnections struct {
-	connections map[string]*websocket.Conn // playerID -> connection
+	connections map[string]*gameConn // playerID -> connection
 	mu          sync.RWMutex
 }
 
@@ -27,6 +50,17 @@ type Game struct {
 	mine        *Position
 	whiteClock  *Clock
 	blackClock  *Clock
+
+	// started is set once both players are seated and white's clock is running.
+	started bool
+	// flagTimer fires when the side to move runs out of time.
+	flagTimer *time.Timer
+	// lastActivity is used by the manager to reap abandoned games.
+	lastActivity time.Time
+
+	// broadcastMu serialises state pushes. Snapshotting the state under it keeps
+	// clients from ever receiving an older state after a newer one.
+	broadcastMu sync.Mutex
 
 	// Single-player bot metadata. isBot is false for normal PvP games.
 	isBot         bool
@@ -67,18 +101,19 @@ type CapturedPieces struct {
 
 func NewGame(id string) *Game {
 	return &Game{
-		ID:          id,
-		mu:          sync.Mutex{},
-		state:       newGameState(),
-		connections: NewGameConnections(),
-		whiteClock:  NewClock(time.Duration(1200) * time.Second),
-		blackClock:  NewClock(time.Duration(1200) * time.Second),
+		ID:           id,
+		mu:           sync.Mutex{},
+		state:        newGameState(),
+		connections:  NewGameConnections(),
+		whiteClock:   NewClock(time.Duration(1200) * time.Second),
+		blackClock:   NewClock(time.Duration(1200) * time.Second),
+		lastActivity: time.Now(),
 	}
 }
 
 func NewGameConnections() *GameConnections {
 	return &GameConnections{
-		connections: make(map[string]*websocket.Conn),
+		connections: make(map[string]*gameConn),
 	}
 }
 
@@ -150,11 +185,75 @@ func (g *Game) AddPlayer(playerID string) (PlayerColor, error) {
 	return "", errors.New("game is full")
 }
 
+// GetState returns a deep copy of the game state. A shallow copy would hand the
+// caller the live board (and slices) which the game keeps mutating, so anything
+// read or marshalled outside the lock would race with the next move.
 func (g *Game) GetState() GameState {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
-	return g.state
+	return g.state.clone()
+}
+
+func (state GameState) clone() GameState {
+	c := state
+
+	if state.Board != nil {
+		board := &BoardState{
+			Board:             make([][]*Piece, len(state.Board.Board)),
+			WhiteKingPosition: state.Board.WhiteKingPosition,
+			BlackKingPosition: state.Board.BlackKingPosition,
+		}
+		for y, row := range state.Board.Board {
+			board.Board[y] = make([]*Piece, len(row))
+			for x, piece := range row {
+				if piece != nil {
+					pieceCopy := *piece
+					board.Board[y][x] = &pieceCopy
+				}
+			}
+		}
+		c.Board = board
+	}
+
+	c.MoveHistory = append([]Move(nil), state.MoveHistory...)
+	c.LegalMoves = append([]Position(nil), state.LegalMoves...)
+	c.CapturedPieces = CapturedPieces{
+		White: append([]Piece(nil), state.CapturedPieces.White...),
+		Black: append([]Piece(nil), state.CapturedPieces.Black...),
+	}
+	c.WhiteKingAttackedSquares = append([]Position(nil), state.WhiteKingAttackedSquares...)
+	c.BlackKingAttackedSquares = append([]Position(nil), state.BlackKingAttackedSquares...)
+
+	c.SelectedSquare = clonePosition(state.SelectedSquare)
+	c.EnPassantTarget = clonePosition(state.EnPassantTarget)
+	c.Mine = clonePosition(state.Mine)
+	c.LastMine = clonePosition(state.LastMine)
+	c.PromotionSquare = clonePosition(state.PromotionSquare)
+	c.PendingMoveDestination = clonePosition(state.PendingMoveDestination)
+	c.Explosion = clonePosition(state.Explosion)
+	if state.Resolve != nil {
+		resolve := *state.Resolve
+		c.Resolve = &resolve
+	}
+	if state.PromotionPiece != nil {
+		promotionPiece := *state.PromotionPiece
+		c.PromotionPiece = &promotionPiece
+	}
+	if state.LastMove != nil {
+		lastMove := *state.LastMove
+		c.LastMove = &lastMove
+	}
+
+	return c
+}
+
+func clonePosition(p *Position) *Position {
+	if p == nil {
+		return nil
+	}
+	c := *p
+	return &c
 }
 
 func (g *Game) IsPlayerInGame(playerID string) bool {
@@ -184,51 +283,217 @@ func (g *Game) canSpectate() bool {
 	return g.state.Players.White.ID == "" || g.state.Players.Black.ID == ""
 }
 
-func (g *Game) MakeMove(move WSMove) error {
+// MakeMove applies playerID's move and pushes the resulting state to every
+// connection. When a move is rejected as illegal the current state is pushed too,
+// so a client whose local board has drifted can resynchronise.
+func (g *Game) MakeMove(playerID string, move WSMove) error {
+	resync, err := g.applyMove(playerID, move)
+	if err == nil || resync {
+		g.broadcastState()
+	}
+	return err
+}
+
+func (g *Game) applyMove(playerID string, move WSMove) (resync bool, err error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 
+	if g.state.Resolve != nil {
+		return false, errors.New("game is already over")
+	}
+	if g.state.Players.White.ID == "" || g.state.Players.Black.ID == "" {
+		return false, errors.New("waiting for an opponent to join")
+	}
+
+	// Only the player whose turn it is may move. Without this check any connected
+	// client — including a spectator — could move either side's pieces.
+	playerColor := g.colorOf(playerID)
+	if playerColor == "" {
+		return false, errors.New("not a player in this game")
+	}
+	// From here on the sender is a player in this game, so every rejection is worth
+	// answering with the current state: their local board has drifted from the
+	// server's and the push is what lets them recover.
+	if playerColor != g.state.ToMove {
+		return true, errors.New("not your turn")
+	}
+
 	// Guard against out-of-bounds coordinates before indexing the board.
 	if !isValidPosition(move.From) || !isValidPosition(move.To) {
-		return errors.New("invalid move, out of bounds")
+		return true, errors.New("invalid move, out of bounds")
 	}
 
 	piece := g.state.Board.Board[move.From.Y][move.From.X]
 	if piece == nil {
-		return errors.New("no piece at from square")
+		return true, errors.New("no piece at from square")
 	}
 
 	if g.state.ToMove != piece.Color {
-		return errors.New("not your turn")
+		return true, errors.New("not your piece")
 	}
 
-	// Validate and execute the move
+	// Validate the move, the promotion choice and the mine before touching state.
 	if err := g.validateMove(move); err != nil {
-		go g.broadcastState()
-		return err
+		return true, err
 	}
-	if g.state.ToMove == "white" {
-		g.whiteClock.Stop()
-	} else {
-		g.blackClock.Stop()
+	promotion, err := resolvePromotion(piece, move)
+	if err != nil {
+		return true, err
+	}
+	move.Promotion = promotion
+	if err := g.validateMinePlacement(move); err != nil {
+		return true, err
 	}
 
-	err := g.executeMove(move)
-	if err != nil {
-		return err
+	g.clockFor(g.state.ToMove).Stop()
+
+	if err := g.executeMove(move); err != nil {
+		return true, err
 	}
-	// Start opposing players clock
-	if g.state.ToMove == "white" {
-		g.whiteClock.Start()
+
+	if g.state.Resolve == nil {
+		// Start opposing player's clock and re-arm the flag timer for them.
+		g.clockFor(g.state.ToMove).Start()
+		g.armFlagTimer(g.state.ToMove)
 	} else {
-		g.blackClock.Start()
+		g.endClocks()
 	}
 
 	// update client clock for both players
-	g.state.Players.White.TimeLeft = int(g.whiteClock.timeLeft.Milliseconds() / 100)
-	g.state.Players.Black.TimeLeft = int(g.blackClock.timeLeft.Milliseconds() / 100)
+	g.state.Players.White.TimeLeft = g.whiteClock.Deciseconds()
+	g.state.Players.Black.TimeLeft = g.blackClock.Deciseconds()
+	g.lastActivity = time.Now()
 
-	return nil
+	return false, nil
+}
+
+// colorOf returns the colour playerID is seated as, or "" if they are only a
+// spectator. Callers must hold g.mu.
+func (g *Game) colorOf(playerID string) string {
+	if playerID == "" {
+		return ""
+	}
+	switch playerID {
+	case g.state.Players.White.ID:
+		return "white"
+	case g.state.Players.Black.ID:
+		return "black"
+	}
+	return ""
+}
+
+func (g *Game) clockFor(color string) *Clock {
+	if color == "black" {
+		return g.blackClock
+	}
+	return g.whiteClock
+}
+
+// resolvePromotion settles what the moving piece becomes. A pawn reaching the back
+// rank must become something: defaulting to a queen keeps a pawn from being left on
+// rank 1/8, where move generation would run off the board. A promotion piece sent
+// with an ordinary move is ignored, but one that is not a real promotion piece is
+// refused outright — the server used to apply it blindly, so a client could promote
+// itself a second king.
+func resolvePromotion(piece *Piece, move WSMove) (PieceType, error) {
+	if move.Promotion != "" {
+		switch move.Promotion {
+		case Queen, Rook, Bishop, Knight:
+		default:
+			return "", fmt.Errorf("invalid promotion piece: %s", move.Promotion)
+		}
+	}
+
+	if piece.Type != Pawn || (move.To.Y != 0 && move.To.Y != 7) {
+		return "", nil
+	}
+	if move.Promotion == "" {
+		return Queen, nil
+	}
+	return move.Promotion, nil
+}
+
+// startIfReady starts white's clock the first time both players are seated, so
+// white's opening move is timed like every other move. Callers must hold g.mu.
+func (g *Game) startIfReady() {
+	if g.started || g.state.Resolve != nil {
+		return
+	}
+	if g.state.Players.White.ID == "" || g.state.Players.Black.ID == "" {
+		return
+	}
+	g.started = true
+	g.whiteClock.Start()
+	g.armFlagTimer("white")
+}
+
+// armFlagTimer schedules the flag fall for the side to move. Callers must hold g.mu.
+func (g *Game) armFlagTimer(color string) {
+	g.disarmFlagTimer()
+
+	remaining := g.clockFor(color).TimeLeft()
+	if remaining <= 0 {
+		remaining = time.Millisecond
+	}
+	flagged := color
+	g.flagTimer = time.AfterFunc(remaining, func() { g.flagFall(flagged) })
+}
+
+// disarmFlagTimer cancels any pending flag fall. Callers must hold g.mu.
+func (g *Game) disarmFlagTimer() {
+	if g.flagTimer != nil {
+		g.flagTimer.Stop()
+		g.flagTimer = nil
+	}
+}
+
+// endClocks stops both clocks once the game is decided. Callers must hold g.mu.
+func (g *Game) endClocks() {
+	g.disarmFlagTimer()
+	g.whiteClock.Stop()
+	g.blackClock.Stop()
+}
+
+// flagFall ends the game when the side to move runs out of time. Previously the
+// clocks were purely decorative: they could run past zero forever because nothing
+// on the server ever noticed.
+func (g *Game) flagFall(color string) {
+	g.mu.Lock()
+	if g.state.Resolve != nil || g.state.ToMove != color || g.clockFor(color).TimeLeft() > 0 {
+		g.mu.Unlock()
+		return
+	}
+
+	g.endClocks()
+	result := getOtherColor(color) + " wins on time"
+	g.state.Resolve = &result
+	g.state.Sound = ""
+	g.state.Players.White.TimeLeft = g.whiteClock.Deciseconds()
+	g.state.Players.Black.TimeLeft = g.blackClock.Deciseconds()
+	g.mu.Unlock()
+
+	g.broadcastState()
+}
+
+// Close releases the game's background resources.
+func (g *Game) Close() {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	g.endClocks()
+}
+
+// IdleSince reports when the game last saw a move or a connection.
+func (g *Game) IdleSince() time.Time {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.lastActivity
+}
+
+// ConnectionCount is the number of clients currently attached to this game.
+func (g *Game) ConnectionCount() int {
+	g.connections.mu.RLock()
+	defer g.connections.mu.RUnlock()
+	return len(g.connections.connections)
 }
 
 /*
@@ -299,27 +564,33 @@ func (g *Game) executeMove(move WSMove) error {
 		return fmt.Errorf("no piece at source position %v", move.From)
 	}
 
+	if g.state.ToMove != "white" && g.state.ToMove != "black" {
+		return fmt.Errorf("invalid turn state: %s", g.state.ToMove)
+	}
+
 	ply := g.makePly(move)
 	g.state.Sound = "" // clear last turns sounds
 
-	// Handle explosion/capture sound logic
-	if g.mine != nil && move.To.X == g.mine.X && move.To.Y == g.mine.Y && piece.Type != Pawn {
-		g.state.Sound = "explosion"
-	} else {
-		targetPiece := g.state.Board.Board[move.To.Y][move.To.X]
-		if targetPiece != nil {
-			g.state.Sound = "capture"
-			switch g.state.ToMove {
-			case "white":
-				g.state.CapturedPieces.White = append(g.state.CapturedPieces.White, *targetPiece)
-			case "black":
-				g.state.CapturedPieces.Black = append(g.state.CapturedPieces.Black, *targetPiece)
-			default:
-				return fmt.Errorf("invalid turn state: %s", g.state.ToMove)
-			}
-		} else {
-			g.state.Sound = "move"
+	// A piece standing on the destination is captured whether or not the square is
+	// mined; recording it only on the non-explosion path used to drop it from the
+	// graveyard and material count for the rest of the game.
+	targetPiece := g.state.Board.Board[move.To.Y][move.To.X]
+	if targetPiece != nil {
+		switch g.state.ToMove {
+		case "white":
+			g.state.CapturedPieces.White = append(g.state.CapturedPieces.White, *targetPiece)
+		case "black":
+			g.state.CapturedPieces.Black = append(g.state.CapturedPieces.Black, *targetPiece)
 		}
+	}
+
+	switch {
+	case g.mine != nil && move.To == *g.mine && piece.Type != Pawn:
+		g.state.Sound = "explosion"
+	case targetPiece != nil:
+		g.state.Sound = "capture"
+	default:
+		g.state.Sound = "move"
 	}
 
 	// Move the piece
@@ -327,6 +598,7 @@ func (g *Game) executeMove(move WSMove) error {
 	g.state.Board.Board[move.To.Y][move.To.X] = piece
 
 	// Update piece state
+	movedType := piece.Type // the type before any promotion changes it
 	piece.HasMoved = true
 	piece.Position = move.To
 
@@ -336,7 +608,7 @@ func (g *Game) executeMove(move WSMove) error {
 	}
 
 	// Handle special moves based on piece type
-	if piece.Type == King {
+	if movedType == King {
 		ply = g.handleCastle(move, ply)
 		switch g.state.ToMove {
 		case "white":
@@ -344,8 +616,18 @@ func (g *Game) executeMove(move WSMove) error {
 		case "black":
 			g.state.Board.BlackKingPosition = move.To
 		}
-	} else if piece.Type == Pawn {
+	} else if movedType == Pawn {
 		ply = g.handleEnPassant(move, ply)
+	}
+
+	// The en passant target is only live for the single ply after a double pawn
+	// push. It used to be updated inside the pawn branch alone, so any other move
+	// left a stale target behind — long enough for a pawn to "capture en passant"
+	// onto an empty square, which then dereferenced the pawn that was not there.
+	if movedType == Pawn && abs(move.To.Y-move.From.Y) == 2 {
+		g.state.EnPassantTarget = &Position{X: move.To.X, Y: (move.From.Y + move.To.Y) / 2}
+	} else {
+		g.state.EnPassantTarget = nil
 	}
 
 	// Update move history
@@ -360,17 +642,16 @@ func (g *Game) executeMove(move WSMove) error {
 	}
 
 	// Handle explosion logic
-	if g.mine != nil && move.To.X == g.mine.X && move.To.Y == g.mine.Y && piece.Type != King && piece.Type != Pawn {
-		g.state.Explosion = &move.To
+	if g.mine != nil && move.To == *g.mine && piece.Type != King && piece.Type != Pawn {
+		explosionSquare := move.To
+		g.state.Explosion = &explosionSquare
 
-		// Get piece before nullifying for capture list
-		if targetPiece := g.state.Board.Board[move.To.Y][move.To.X]; targetPiece != nil {
-			switch g.state.ToMove {
-			case "white":
-				g.state.CapturedPieces.Black = append(g.state.CapturedPieces.Black, *targetPiece)
-			case "black":
-				g.state.CapturedPieces.White = append(g.state.CapturedPieces.White, *targetPiece)
-			}
+		// The piece that stepped on the mine is lost; credit it to the opponent.
+		switch g.state.ToMove {
+		case "white":
+			g.state.CapturedPieces.Black = append(g.state.CapturedPieces.Black, *piece)
+		case "black":
+			g.state.CapturedPieces.White = append(g.state.CapturedPieces.White, *piece)
 		}
 
 		g.state.Board.Board[move.To.Y][move.To.X] = nil
@@ -398,7 +679,9 @@ func (g *Game) executeMove(move WSMove) error {
 	g.switchTurn()
 	g.state.IsCheck = isKingInCheck(g.state.Board, g.state.ToMove)
 
-	if g.isNoLegalMoves(g.state.ToMove) {
+	// A Bombmate already decided the game; don't let the mate/stalemate scan below
+	// overwrite it with the opposite result.
+	if g.state.Resolve == nil && g.isNoLegalMoves(g.state.ToMove) {
 		if g.state.IsCheck {
 			result := getOtherColor(g.state.ToMove) + " wins by Checkmate"
 			g.state.Resolve = &result
@@ -417,13 +700,98 @@ func (g *Game) executeMove(move WSMove) error {
 	lastMove := SimpleMove{From: move.From, To: move.To}
 	g.state.LastMove = &lastMove
 
-	go g.broadcastState()
-
 	return nil
 }
 
 func isValidPosition(pos Position) bool {
 	return pos.X >= 0 && pos.X < 8 && pos.Y >= 0 && pos.Y < 8
+}
+
+// validateMinePlacement enforces the mine rules server-side: the square must be on
+// the board, empty once the move lands, and not one either king could step onto.
+// The server used to accept whatever square the client sent.
+func (g *Game) validateMinePlacement(move WSMove) error {
+	if !isValidPosition(move.Mine) {
+		return errors.New("invalid mine, out of bounds")
+	}
+	if g.occupancyAfterMove(move.From, move.To)[move.Mine] {
+		return errors.New("invalid mine, square is occupied")
+	}
+	if g.kingAdjacencyAfterMove(move.From, move.To)[move.Mine] {
+		return errors.New("invalid mine, square is adjacent to a king")
+	}
+	return nil
+}
+
+// occupancyAfterMove reports which squares hold a piece once the given move lands,
+// accounting for the vacated square, an en passant capture and a castling rook.
+// This mirrors the board the client places its mine on.
+func (g *Game) occupancyAfterMove(from, to Position) map[Position]bool {
+	occupied := make(map[Position]bool, 32)
+	for y := 0; y < 8; y++ {
+		for x := 0; x < 8; x++ {
+			if g.state.Board.Board[y][x] != nil {
+				occupied[Position{X: x, Y: y}] = true
+			}
+		}
+	}
+
+	piece := g.state.Board.Board[from.Y][from.X]
+	delete(occupied, from)
+	occupied[to] = true
+	if piece == nil {
+		return occupied
+	}
+
+	if piece.Type == Pawn && g.state.EnPassantTarget != nil && to == *g.state.EnPassantTarget {
+		captured := Position{X: to.X, Y: to.Y + 1}
+		if piece.Color == "black" {
+			captured = Position{X: to.X, Y: to.Y - 1}
+		}
+		delete(occupied, captured)
+	}
+
+	if piece.Type == King && abs(from.X-to.X) == 2 {
+		switch to.X {
+		case 2:
+			delete(occupied, Position{X: 0, Y: from.Y})
+			occupied[Position{X: 3, Y: from.Y}] = true
+		case 6:
+			delete(occupied, Position{X: 7, Y: from.Y})
+			occupied[Position{X: 5, Y: from.Y}] = true
+		}
+	}
+
+	return occupied
+}
+
+// kingAdjacencyAfterMove is the set of squares either king could step onto once the
+// given move lands — the squares mines may not be placed on.
+func (g *Game) kingAdjacencyAfterMove(from, to Position) map[Position]bool {
+	whiteKing, blackKing := g.state.Board.WhiteKingPosition, g.state.Board.BlackKingPosition
+	if piece := g.state.Board.Board[from.Y][from.X]; piece != nil && piece.Type == King {
+		if piece.Color == "white" {
+			whiteKing = to
+		} else {
+			blackKing = to
+		}
+	}
+
+	adjacent := make(map[Position]bool, 16)
+	for _, king := range []Position{whiteKing, blackKing} {
+		for dy := -1; dy <= 1; dy++ {
+			for dx := -1; dx <= 1; dx++ {
+				if dx == 0 && dy == 0 {
+					continue
+				}
+				square := Position{X: king.X + dx, Y: king.Y + dy}
+				if boundaryCheck(square) {
+					adjacent[square] = true
+				}
+			}
+		}
+	}
+	return adjacent
 }
 
 func (g *Game) getKingAttackedSquares(color string) []Position {
@@ -648,21 +1016,28 @@ func (g *Game) getPsuedoPawnMoves(piece *Piece) []SimpleMove {
 		dir = Position{X: 0, Y: 1}
 		enPassantDirs = []Position{{X: 1, Y: 1}, {X: -1, Y: 1}}
 	}
+	// A pawn on the last rank has no moves. It should always have promoted, but a
+	// stray one would otherwise index the board out of bounds and panic the server.
+	forwardY := piece.Position.Y + dir.Y
+	if forwardY < 0 || forwardY > 7 {
+		return pawnMoves
+	}
 	// Check move forward 1
-	if g.state.Board.Board[piece.Position.Y+dir.Y][piece.Position.X] == nil {
-		pawnMoves = append(pawnMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X, Y: piece.Position.Y + dir.Y}})
+	if g.state.Board.Board[forwardY][piece.Position.X] == nil {
+		pawnMoves = append(pawnMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X, Y: forwardY}})
 		// Check move forward 2 if not moved
-		if !piece.HasMoved && g.state.Board.Board[piece.Position.Y+dir.Y*2][piece.Position.X] == nil {
-			pawnMoves = append(pawnMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X, Y: piece.Position.Y + dir.Y*2}})
+		doubleY := piece.Position.Y + dir.Y*2
+		if !piece.HasMoved && doubleY >= 0 && doubleY <= 7 && g.state.Board.Board[doubleY][piece.Position.X] == nil {
+			pawnMoves = append(pawnMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X, Y: doubleY}})
 		}
 	}
 	// Check capture left
-	if piece.Position.X > 0 && g.state.Board.Board[piece.Position.Y+dir.Y][piece.Position.X-1] != nil && g.state.Board.Board[piece.Position.Y+dir.Y][piece.Position.X-1].Color != piece.Color {
-		pawnMoves = append(pawnMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X - 1, Y: piece.Position.Y + dir.Y}})
+	if piece.Position.X > 0 && g.state.Board.Board[forwardY][piece.Position.X-1] != nil && g.state.Board.Board[forwardY][piece.Position.X-1].Color != piece.Color {
+		pawnMoves = append(pawnMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X - 1, Y: forwardY}})
 	}
 	// Check capture right
-	if piece.Position.X < 7 && g.state.Board.Board[piece.Position.Y+dir.Y][piece.Position.X+1] != nil && g.state.Board.Board[piece.Position.Y+dir.Y][piece.Position.X+1].Color != piece.Color {
-		pawnMoves = append(pawnMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X + 1, Y: piece.Position.Y + dir.Y}})
+	if piece.Position.X < 7 && g.state.Board.Board[forwardY][piece.Position.X+1] != nil && g.state.Board.Board[forwardY][piece.Position.X+1].Color != piece.Color {
+		pawnMoves = append(pawnMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X + 1, Y: forwardY}})
 	}
 	// Check en passant
 	for _, dir := range enPassantDirs {
@@ -741,15 +1116,15 @@ func (g *Game) getPsuedoKingMoves(piece *Piece) []SimpleMove {
 			kingMoves = append(kingMoves, SimpleMove{From: piece.Position, To: targetPos})
 		}
 	}
-	if !piece.HasMoved {
-		// check for castle moves
-		if g.state.Board.Board[piece.Position.Y][0] != nil && g.state.Board.Board[piece.Position.Y][0].Type == Rook && !g.state.Board.Board[piece.Position.Y][0].HasMoved {
-			if g.state.Board.Board[piece.Position.Y][1] == nil && g.state.Board.Board[piece.Position.Y][2] == nil && g.state.Board.Board[piece.Position.Y][3] == nil {
+	// Check for castle moves. A king may not castle out of, through or into check;
+	// only the destination square used to be checked (by filterLegalMoves).
+	if !piece.HasMoved && piece.Position.X == 4 {
+		opponent := getOtherColor(piece.Color)
+		if !isSquareAttacked(g.state.Board, opponent, piece.Position) {
+			if g.canCastle(piece, 0, []int{1, 2, 3}, 3, opponent) {
 				kingMoves = append(kingMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X - 2, Y: piece.Position.Y}})
 			}
-		}
-		if g.state.Board.Board[piece.Position.Y][7] != nil && g.state.Board.Board[piece.Position.Y][7].Type == Rook && !g.state.Board.Board[piece.Position.Y][7].HasMoved {
-			if g.state.Board.Board[piece.Position.Y][5] == nil && g.state.Board.Board[piece.Position.Y][6] == nil {
+			if g.canCastle(piece, 7, []int{5, 6}, 5, opponent) {
 				kingMoves = append(kingMoves, SimpleMove{From: piece.Position, To: Position{X: piece.Position.X + 2, Y: piece.Position.Y}})
 			}
 		}
@@ -757,28 +1132,52 @@ func (g *Game) getPsuedoKingMoves(piece *Piece) []SimpleMove {
 	return kingMoves
 }
 
-func (g *Game) handleEnPassant(move WSMove, ply Ply) Ply {
-	// if the move is an en passant capture, remove the captured piece and alter ply notation
-	if g.state.EnPassantTarget != nil && move.To.X == g.state.EnPassantTarget.X && move.To.Y == g.state.EnPassantTarget.Y {
-		switch g.state.ToMove {
-		case "white":
-			g.state.CapturedPieces.White = append(g.state.CapturedPieces.White, *g.state.Board.Board[move.To.Y+1][move.To.X])
-			g.state.Board.Board[move.To.Y+1][move.To.X] = nil
-		case "black":
-			g.state.CapturedPieces.Black = append(g.state.CapturedPieces.Black, *g.state.Board.Board[move.To.Y-1][move.To.X])
-			g.state.Board.Board[move.To.Y-1][move.To.X] = nil
+// canCastle reports whether the king may castle with the rook on file rookX.
+// betweenFiles must be empty and passFile — the square the king steps over — must
+// not be attacked. The destination square is covered by filterLegalMoves.
+func (g *Game) canCastle(king *Piece, rookX int, betweenFiles []int, passFile int, opponent string) bool {
+	y := king.Position.Y
+
+	rook := g.state.Board.Board[y][rookX]
+	if rook == nil || rook.Type != Rook || rook.Color != king.Color || rook.HasMoved {
+		return false
+	}
+	for _, x := range betweenFiles {
+		if g.state.Board.Board[y][x] != nil {
+			return false
 		}
-		ply.Notation = "x" + ply.Notation
 	}
-	// if the move is double pawn move, set en passant target
-	switch move.To.Y - move.From.Y {
-	case 2:
-		g.state.EnPassantTarget = &Position{X: move.To.X, Y: move.To.Y - 1}
-	case -2:
-		g.state.EnPassantTarget = &Position{X: move.To.X, Y: move.To.Y + 1}
-	default:
-		g.state.EnPassantTarget = nil
+	return !isSquareAttacked(g.state.Board, opponent, Position{X: passFile, Y: y})
+}
+
+// handleEnPassant removes the pawn captured en passant. The en passant target
+// itself is updated by the caller, for every move rather than pawn moves only.
+func (g *Game) handleEnPassant(move WSMove, ply Ply) Ply {
+	if g.state.EnPassantTarget == nil || move.To != *g.state.EnPassantTarget {
+		return ply
 	}
+
+	capturedY := move.To.Y + 1 // white captures a pawn on the rank below the target
+	if g.state.ToMove == "black" {
+		capturedY = move.To.Y - 1
+	}
+	if capturedY < 0 || capturedY > 7 {
+		return ply
+	}
+
+	capturedPawn := g.state.Board.Board[capturedY][move.To.X]
+	if capturedPawn == nil {
+		return ply
+	}
+
+	switch g.state.ToMove {
+	case "white":
+		g.state.CapturedPieces.White = append(g.state.CapturedPieces.White, *capturedPawn)
+	case "black":
+		g.state.CapturedPieces.Black = append(g.state.CapturedPieces.Black, *capturedPawn)
+	}
+	g.state.Board.Board[capturedY][move.To.X] = nil
+	ply.Notation = "x" + ply.Notation
 
 	return ply
 }
@@ -824,15 +1223,26 @@ func (g *Game) handleCastle(move WSMove, ply Ply) Ply {
 func (g *Game) makePly(move WSMove) Ply {
 	// return ply without rook castle move, add castle rook move in castle detection
 	// at some point, will need to add en passant capture in order to allow for game reconstruction
+	//
+	// The pieces are copied rather than referenced: the history used to hold live
+	// board pointers, so a recorded ply changed as the pieces in it moved on.
 	return Ply{
-		Piece:          g.state.Board.Board[move.From.Y][move.From.X],
+		Piece:          copyPiece(g.state.Board.Board[move.From.Y][move.From.X]),
 		From:           move.From,
 		To:             move.To,
-		CapturedPiece:  g.state.Board.Board[move.To.Y][move.To.X],
+		CapturedPiece:  copyPiece(g.state.Board.Board[move.To.Y][move.To.X]),
 		CastleRookMove: nil,
 		Promotion:      move.Promotion,
 		Notation:       g.getNotation(move),
 	}
+}
+
+func copyPiece(piece *Piece) *Piece {
+	if piece == nil {
+		return nil
+	}
+	c := *piece
+	return &c
 }
 
 func (g *Game) getNotation(move WSMove) string {
@@ -866,6 +1276,12 @@ func (g *Game) switchTurn() {
 func (g *Game) RegisterConnection(playerID string, conn *websocket.Conn) error {
 	g.mu.Lock()
 	isAuthorized := g.isPlayerInGame(playerID) || g.canSpectate()
+	if isAuthorized {
+		g.lastActivity = time.Now()
+		// Both seats filled: white's clock starts now rather than on their reply to
+		// black, which used to leave white's opening move untimed.
+		g.startIfReady()
+	}
 	g.mu.Unlock()
 
 	if !isAuthorized {
@@ -889,11 +1305,11 @@ func (g *Game) RegisterConnection(playerID string, conn *websocket.Conn) error {
 	}
 
 	// Register new connection
-	g.connections.connections[playerID] = conn
+	g.connections.connections[playerID] = &gameConn{conn: conn}
 	g.connections.mu.Unlock()
 
 	// Send initial state to the newly connected player (and anyone else watching).
-	go g.broadcastState()
+	g.broadcastState()
 	return nil
 }
 
@@ -919,8 +1335,19 @@ func (g *Game) UnregisterConnection(playerID string) {
 	}
 }
 
+// broadcastState pushes the current state to every connection. The state is
+// marshalled under both g.mu (so it never races with the move being applied) and
+// broadcastMu (so a client can never receive an older state after a newer one).
 func (g *Game) broadcastState() {
+	g.broadcastMu.Lock()
+	defer g.broadcastMu.Unlock()
+
+	g.mu.Lock()
+	g.state.Players.White.TimeLeft = g.whiteClock.Deciseconds()
+	g.state.Players.Black.TimeLeft = g.blackClock.Deciseconds()
 	jsonGameState, err := json.Marshal(g.state)
+	g.mu.Unlock()
+
 	if err != nil {
 		log.Printf("failed to marshal game state: %v", err)
 		return
@@ -936,7 +1363,7 @@ func (g *Game) broadcastState() {
 // failed/slow write can never deadlock against the connection mutex.
 func (g *Game) broadcastMessage(msg ws.Message) {
 	g.connections.mu.RLock()
-	activeConnections := make(map[string]*websocket.Conn, len(g.connections.connections))
+	activeConnections := make(map[string]*gameConn, len(g.connections.connections))
 	for playerID, conn := range g.connections.connections {
 		activeConnections[playerID] = conn
 	}
@@ -944,7 +1371,7 @@ func (g *Game) broadcastMessage(msg ws.Message) {
 
 	var failed []string
 	for playerID, conn := range activeConnections {
-		if err := conn.WriteJSON(msg); err != nil {
+		if err := conn.writeJSON(msg); err != nil {
 			log.Printf("failed to send message to player %s: %v", playerID, err)
 			failed = append(failed, playerID)
 		}
@@ -957,4 +1384,30 @@ func (g *Game) broadcastMessage(msg ws.Message) {
 		}
 		g.connections.mu.Unlock()
 	}
+}
+
+// SendError delivers a message to a single player over the connection they are
+// registered with, so it is serialised against broadcasts on the same socket. It
+// reports whether the player had a connection to send on.
+func (g *Game) SendError(playerID string, message string) bool {
+	g.connections.mu.RLock()
+	conn, ok := g.connections.connections[playerID]
+	g.connections.mu.RUnlock()
+
+	if !ok {
+		return false
+	}
+
+	payload, err := json.Marshal(struct {
+		Message string `json:"message"`
+	}{Message: message})
+	if err != nil {
+		log.Printf("failed to marshal error payload: %v", err)
+		return true
+	}
+
+	if err := conn.writeJSON(ws.Message{Type: ws.MessageTypeError, Payload: payload}); err != nil {
+		log.Printf("failed to send error to player %s: %v", playerID, err)
+	}
+	return true
 }

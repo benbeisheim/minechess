@@ -45,10 +45,16 @@ func (q *Queue) AddPlayer(player Player) error {
 	return nil
 }
 
-// GetNextPair finds two players to match together
-func (q *Queue) GetNextPair() (Player, Player) {
+// GetNextPair finds two players to match together, reporting false when fewer than
+// two are waiting. The length check lives here rather than at the call site so a
+// Size()-then-take race can never index off the end of the queue.
+func (q *Queue) GetNextPair() (Player, Player, bool) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+
+	if len(q.players) < 2 {
+		return Player{}, Player{}, false
+	}
 
 	// For now, just match the two players who have been waiting longest
 	player1 := q.players[0].Player
@@ -57,7 +63,7 @@ func (q *Queue) GetNextPair() (Player, Player) {
 	// Remove these players from the queue
 	q.players = q.players[2:]
 
-	return player1, player2
+	return player1, player2, true
 }
 
 func (q *Queue) Size() int {

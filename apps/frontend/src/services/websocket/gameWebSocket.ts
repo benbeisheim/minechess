@@ -105,6 +105,12 @@ export class GameWebSocket {
                     this.dispatch(setOpponentLeft(true));
                     break;
 
+                case 'error':
+                    // The server rejects illegal moves and pushes the authoritative
+                    // state alongside this, so the board recovers on its own.
+                    console.warn('Server rejected message:', message.payload?.message ?? message.payload);
+                    break;
+
                 default:
                     console.error('Unknown message type:', message.type);
             }

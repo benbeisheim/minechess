@@ -60,6 +60,12 @@ func (gs *GameService) UnregisterConnection(gameID string, playerID string) {
 	gs.gameManager.UnregisterConnection(gameID, playerID)
 }
 
+// SendError reports a rejected message to one player, returning false if there is
+// no game or no live connection to send it on.
+func (gs *GameService) SendError(gameID string, playerID string, message string) bool {
+	return gs.gameManager.SendError(gameID, playerID, message)
+}
+
 func (gs *GameService) RegisterMatchmakingChannel(playerID string, ch chan string) error {
 	return gs.gameManager.RegisterMatchmakingChannel(playerID, ch)
 }

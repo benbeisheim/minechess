@@ -3,7 +3,6 @@ package controller
 import (
 	"bufio"
 	"fmt"
-	"strings"
 
 	"github.com/benbeisheim/minechess-backend/internal/service"
 	"github.com/gofiber/fiber/v2"
@@ -32,7 +31,7 @@ func (gc *GameController) CreateGame(c *fiber.Ctx) error {
 }
 
 func (gc *GameController) CreateBotGame(c *fiber.Ctx) error {
-	playerID := c.Locals("playerID").(string)
+	playerID, _ := c.Locals("playerID").(string)
 	difficulty := c.QueryInt("difficulty", 0)
 	if difficulty < 0 || difficulty > 2 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -56,7 +55,7 @@ func (gc *GameController) CreateBotGame(c *fiber.Ctx) error {
 
 func (gc *GameController) JoinGame(c *fiber.Ctx) error {
 	gameID := c.Params("gameId")
-	playerID := c.Locals("playerID").(string)
+	playerID, _ := c.Locals("playerID").(string)
 
 	color, err := gc.gameService.JoinGame(gameID, playerID)
 	if err != nil {
@@ -90,7 +89,7 @@ func (gc *GameController) GetGameState(c *fiber.Ctx) error {
 }
 
 func (gc *GameController) JoinMatchmaking(c *fiber.Ctx) error {
-	playerID := c.Locals("playerID").(string)
+	playerID, _ := c.Locals("playerID").(string)
 
 	if err := gc.gameService.JoinMatchmaking(playerID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -109,9 +108,15 @@ func (gc *GameController) HandleMatchmakingEvents(c *fiber.Ctx) error {
 	c.Set("Connection", "keep-alive")
 	c.Set("Transfer-Encoding", "chunked")
 
-	// Clone: the query string points into fasthttp's reusable buffer and we retain
-	// this ID as a long-lived map key.
-	playerID := strings.Clone(c.Query("playerId"))
+	// Take the ID the middleware resolved (already cloned out of fasthttp's reusable
+	// request buffer). Reading the query directly missed clients that identify
+	// themselves with the X-Player-ID header, registering them under "" instead.
+	playerID, _ := c.Locals("playerID").(string)
+	if playerID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Player ID is required",
+		})
+	}
 	matchChan := make(chan string)
 
 	if err := gc.gameService.RegisterMatchmakingChannel(playerID, matchChan); err != nil {

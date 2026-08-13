@@ -11,6 +11,7 @@ interface PlayerControlProps {
     onChangeColor: (selectedColor: BoardColorObj) => void;
     selectedColor: BoardColorObj;
     opponentLabel?: string | null;
+    opponentIsBot?: boolean;
 }
 
 const PlayerControl: React.FC<PlayerControlProps> = ({
@@ -18,6 +19,7 @@ const PlayerControl: React.FC<PlayerControlProps> = ({
     onChangeColor,
     selectedColor,
     opponentLabel,
+    opponentIsBot,
 }) => {
     const players = useAppSelector((state: RootState) => state.game.players);
     const playerColor = useAppSelector((state: RootState) => state.game.playerColor);
@@ -30,7 +32,11 @@ const PlayerControl: React.FC<PlayerControlProps> = ({
         <div className="flex h-full flex-col gap-3 rounded-2xl border border-gray-200 bg-white/70 p-3 shadow-lg backdrop-blur dark:border-white/10 dark:bg-darkest-gray/80">
             <Resolve resolve={resolve} toMove={toMove} />
 
-            <PlayerCard player={players[opponentColor]} label={opponentLabel ?? undefined} />
+            <PlayerCard
+                player={players[opponentColor]}
+                label={opponentLabel ?? undefined}
+                showInDevelopmentBadge={opponentIsBot}
+            />
 
             <div className="min-h-0 flex-1">
                 <MoveList />

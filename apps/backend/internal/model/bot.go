@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// BotPlayerID is the player ID the bot is seated under in a single-player game.
+const BotPlayerID = "bot"
+
 // EnableBot marks this game as a single-player game against the bot playing botColor.
 func (g *Game) EnableBot(botColor string, difficulty int) {
 	g.mu.Lock()
@@ -185,9 +188,12 @@ func (g *Game) BotMove(uci, mineSquare string) (WSMove, bool) {
 	}
 
 	// Prefer the bot service's mine; fall back to a locally chosen square when the
-	// bot took a different (random) move or supplied no usable square.
+	// bot took a different (random) move or supplied no usable square. The suggested
+	// square is checked against the placement rules the server now enforces —
+	// otherwise an illegal suggestion would get the bot's whole move rejected and
+	// the game would sit waiting for a reply that never comes.
 	mine, ok := parseSquare(mineSquare)
-	if !found || !ok {
+	if !found || !ok || g.validateMinePlacement(WSMove{From: chosen.From, To: chosen.To, Mine: mine}) != nil {
 		mine = g.pickBotMine(chosen)
 	}
 
@@ -210,50 +216,14 @@ func parseSquare(square string) (Position, bool) {
 // It targets squares that will be empty after the move and that neither king can step
 // onto, matching the placement rule human players follow.
 func (g *Game) pickBotMine(move SimpleMove) Position {
-	board := g.state.Board.Board
-	movingPiece := board[move.From.Y][move.From.X]
-
-	occupiedAfterMove := func(p Position) bool {
-		switch p {
-		case move.To:
-			return true // the moved piece will sit here
-		case move.From:
-			return false // vacated by the move
-		default:
-			return board[p.Y][p.X] != nil
-		}
-	}
-
-	// King positions after the move (only the bot's own king could have moved).
-	whiteKing, blackKing := g.state.Board.WhiteKingPosition, g.state.Board.BlackKingPosition
-	if movingPiece != nil && movingPiece.Type == King {
-		if movingPiece.Color == "white" {
-			whiteKing = move.To
-		} else {
-			blackKing = move.To
-		}
-	}
-
-	blocked := map[Position]bool{}
-	for _, king := range []Position{whiteKing, blackKing} {
-		for dy := -1; dy <= 1; dy++ {
-			for dx := -1; dx <= 1; dx++ {
-				if dx == 0 && dy == 0 {
-					continue
-				}
-				adjacent := Position{X: king.X + dx, Y: king.Y + dy}
-				if boundaryCheck(adjacent) {
-					blocked[adjacent] = true
-				}
-			}
-		}
-	}
+	occupied := g.occupancyAfterMove(move.From, move.To)
+	blocked := g.kingAdjacencyAfterMove(move.From, move.To)
 
 	candidates := make([]Position, 0, 32)
 	for y := 0; y < 8; y++ {
 		for x := 0; x < 8; x++ {
 			p := Position{X: x, Y: y}
-			if !occupiedAfterMove(p) && !blocked[p] {
+			if !occupied[p] && !blocked[p] {
 				candidates = append(candidates, p)
 			}
 		}
@@ -265,7 +235,7 @@ func (g *Game) pickBotMine(move SimpleMove) Position {
 	// Fall back to any empty square if every legal mine square is king-adjacent.
 	for y := 0; y < 8; y++ {
 		for x := 0; x < 8; x++ {
-			if p := (Position{X: x, Y: y}); !occupiedAfterMove(p) {
+			if p := (Position{X: x, Y: y}); !occupied[p] {
 				return p
 			}
 		}

@@ -6,6 +6,7 @@ import { Player } from "../../types/chess";
 import Clock from "../Clock/Clock";
 import Graveyard from "../PlayerControl/Graveyard";
 import MaterialCount from "../PlayerControl/MaterialCount";
+import BetaBadge from "../BetaBadge/BetaBadge";
 
 // An animated "..." that cycles 1→2→3 dots, used while waiting for the opponent.
 const WaitingDots: React.FC = () => {
@@ -17,7 +18,12 @@ const WaitingDots: React.FC = () => {
     return <span className="inline-block w-3 text-left">{".".repeat(count)}</span>;
 };
 
-const PlayerCard: React.FC<{ player: Player; label?: string }> = ({ player, label }) => {
+const PlayerCard: React.FC<{
+    player: Player;
+    label?: string;
+    /** Flags a bot opponent as still under development. */
+    showInDevelopmentBadge?: boolean;
+}> = ({ player, label, showInDevelopmentBadge }) => {
     const dispatch = useAppDispatch();
     const toMove = useAppSelector((state: RootState) => state.game.toMove);
     const resolve = useAppSelector((state: RootState) => state.game.resolve);
@@ -59,6 +65,7 @@ const PlayerCard: React.FC<{ player: Player; label?: string }> = ({ player, labe
                             </span>
                         )}
                         <MaterialCount playerColor={player.color} />
+                        {showInDevelopmentBadge && <BetaBadge>Beta</BetaBadge>}
                     </div>
                     <Graveyard capturedPieces={playerCapturedPieces} />
                 </div>

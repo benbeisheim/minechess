@@ -2,6 +2,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { PlayerColor } from '../../types/chess';
 import { createGame, joinGame, createBotGame, BotDifficulty } from '../../services/api';
+import BetaBadge from '../BetaBadge/BetaBadge';
 
 // Lazily loaded so the heavy game/animation code stays out of the initial bundle
 // and the landing page loads fast.
@@ -19,6 +20,7 @@ export function TestInterface() {
     const [inputGameID, setInputGameID] = useState('');
     const [playerColor, setPlayerColor] = useState<PlayerColor>("white");
     const [opponentLabel, setOpponentLabel] = useState<string | null>(null);
+    const [opponentIsBot, setOpponentIsBot] = useState(false);
     const [copied, setCopied] = useState(false);
 
     async function copyGameId() {
@@ -42,6 +44,7 @@ export function TestInterface() {
             const joinData = await joinGame(newGameID);
             setPlayerColor(joinData.color as PlayerColor);
             setOpponentLabel(null);
+            setOpponentIsBot(false);
             setGameID(newGameID);
         } catch (err) {
             console.error(err);
@@ -54,6 +57,7 @@ export function TestInterface() {
             const joinData = await joinGame(inputGameID);
             setPlayerColor(joinData.color as PlayerColor);
             setOpponentLabel(null);
+            setOpponentIsBot(false);
             setGameID(inputGameID);
         } catch (err) {
             console.error(err);
@@ -68,6 +72,7 @@ export function TestInterface() {
             }
             setPlayerColor(data.color as PlayerColor);
             setOpponentLabel(`Bot · ${label}`);
+            setOpponentIsBot(true);
             setGameID(data.game_id);
         } catch (err) {
             console.error(err);
@@ -77,6 +82,12 @@ export function TestInterface() {
     if (gameID) {
         return (
             <div className="flex h-full w-full flex-col items-center gap-3 p-4">
+                {opponentIsBot && (
+                    <div className="flex items-center gap-2 rounded-lg border border-amber-400/50 bg-amber-400/10 px-3 py-1.5 text-xs text-amber-800 dark:text-amber-200">
+                        <BetaBadge />
+                        <span>You&apos;re playing an early build of the MineChess bot.</span>
+                    </div>
+                )}
                 <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white/70 px-3 py-1.5 text-sm dark:border-white/15 dark:bg-white/5">
                     <span className="text-gray-500 dark:text-gray-400">Game ID</span>
                     <code className="font-mono font-semibold text-gray-800 dark:text-white">{gameID}</code>
@@ -93,6 +104,7 @@ export function TestInterface() {
                         gameId={gameID}
                         playerColor={playerColor}
                         opponentLabel={opponentLabel}
+                        opponentIsBot={opponentIsBot}
                         handleLeaveGame={() => {
                             setGameID(null);
                         }}
@@ -120,9 +132,12 @@ export function TestInterface() {
             <div className="relative z-10 mx-auto mb-3 w-full max-w-md flex-none space-y-3 px-4">
                 {/* Play the computer */}
                 <div className="rounded-2xl border border-gray-300 bg-white/70 p-4 dark:border-white/10 dark:bg-white/5">
-                    <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                        Play the computer
-                    </h2>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                            Play the computer
+                        </h2>
+                        <BetaBadge />
+                    </div>
                     <div className="grid grid-cols-3 gap-2">
                         {BOT_LEVELS.map(({ label, difficulty }) => (
                             <button
@@ -134,6 +149,10 @@ export function TestInterface() {
                             </button>
                         ))}
                     </div>
+                    <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        The bots are still in development — they play legal chess, but their
+                        strength and mine placement are still being tuned.
+                    </p>
                 </div>
 
                 {/* Play a friend */}

@@ -46,74 +46,73 @@ func (gm *GameManager) processMatchmaking() {
 
 	for range ticker.C {
 		gm.mu.Lock()
-		if gm.queue.Size() >= 2 {
-			player1, player2 := gm.queue.GetNextPair()
-
-			// Create and set up the game as before...
-			// Create new game
-			gameID := uuid.New().String()
-			game := model.NewGame(gameID)
-
-			// Add players to game
-			p1Color, err := game.AddPlayer(player1.ID) // Assuming this returns the assigned color
-			if err != nil {
-				log.Printf("matchmaking: failed to add player to game: %v", err)
-				continue
-			}
-			p2Color, err := game.AddPlayer(player2.ID)
-			if err != nil {
-				log.Printf("matchmaking: failed to add player to game: %v", err)
-				continue
-			}
-			gm.games[gameID] = game
-
-			// Create match events for each player
-			player1Event := model.MatchFoundEvent{
-				GameID: gameID,
-				Color:  p1Color, // Use actual color assigned by AddPlayer
-			}
-			player2Event := model.MatchFoundEvent{
-				GameID: gameID,
-				Color:  p2Color, // Use actual color assigned by AddPlayer
-			}
-
-			// Send events and clean up channels
-			successfullySentBoth := true
-
-			// Helper function to send event and clean up channel
-			sendEventAndCleanup := func(playerID string, event model.MatchFoundEvent) bool {
-				if ch, ok := gm.matchingChannels[playerID]; ok {
-					select {
-					case ch <- mustJSON(event):
-						// Remove the channel from the map
-						delete(gm.matchingChannels, playerID)
-						// Close the channel
-						close(ch)
-						return true
-					default:
-						log.Printf("matchmaking: failed to send match event to player %s", playerID)
-						return false
-					}
-				}
-				return false
-			}
-
-			// Send to both players
-			if !sendEventAndCleanup(player1.ID, player1Event) {
-				successfullySentBoth = false
-			}
-			if !sendEventAndCleanup(player2.ID, player2Event) {
-				successfullySentBoth = false
-			}
-
-			// If we failed to notify both players, we might want to handle that
-			if !successfullySentBoth {
-				// Maybe add them back to queue or implement retry logic
-				log.Println("matchmaking: failed to notify all players of match")
-			}
+		// Drain the queue: a single pair per tick left everyone behind them waiting
+		// an extra second each.
+		for gm.matchPair() {
 		}
 		gm.mu.Unlock()
 	}
+}
+
+// matchPair pairs the two longest-waiting players, if there are two. It reports
+// whether a pair was taken off the queue. Callers must hold gm.mu.
+func (gm *GameManager) matchPair() bool {
+	player1, player2, ok := gm.queue.GetNextPair()
+	if !ok {
+		return false
+	}
+
+	gameID := uuid.New().String()
+	game := model.NewGame(gameID)
+
+	// Add players to game
+	p1Color, err := game.AddPlayer(player1.ID) // Assuming this returns the assigned color
+	if err != nil {
+		log.Printf("matchmaking: failed to add player to game: %v", err)
+		return true
+	}
+	p2Color, err := game.AddPlayer(player2.ID)
+	if err != nil {
+		log.Printf("matchmaking: failed to add player to game: %v", err)
+		return true
+	}
+
+	// Helper function to send event and clean up channel
+	sendEventAndCleanup := func(playerID string, event model.MatchFoundEvent) bool {
+		ch, ok := gm.matchingChannels[playerID]
+		if !ok {
+			return false
+		}
+		select {
+		case ch <- mustJSON(event):
+			// Remove the channel from the map
+			delete(gm.matchingChannels, playerID)
+			// Close the channel
+			close(ch)
+			return true
+		default:
+			log.Printf("matchmaking: failed to send match event to player %s", playerID)
+			return false
+		}
+	}
+
+	sent1 := sendEventAndCleanup(player1.ID, model.MatchFoundEvent{GameID: gameID, Color: p1Color})
+	sent2 := sendEventAndCleanup(player2.ID, model.MatchFoundEvent{GameID: gameID, Color: p2Color})
+
+	// A player who could not be notified has dropped off the queue stream, so there
+	// is nobody to requeue. Only register the game if at least one player was told
+	// its ID; otherwise it would sit in the map forever, unreachable by anyone.
+	if !sent1 && !sent2 {
+		log.Println("matchmaking: neither player could be notified, discarding game")
+		game.Close()
+		return true
+	}
+	if !sent1 || !sent2 {
+		log.Println("matchmaking: failed to notify all players of match")
+	}
+
+	gm.games[gameID] = game
+	return true
 }
 
 func (gm *GameManager) UnregisterMatchmakingChannel(playerID string) {
@@ -135,6 +134,12 @@ func mustJSON(v any) string {
 	return string(bytes)
 }
 
+const (
+	// A game with nobody connected is reaped once it has been idle this long.
+	gameIdleTimeout = 30 * time.Minute
+	gameSweepPeriod = 5 * time.Minute
+)
+
 func NewGameManager() *GameManager {
 	gm := &GameManager{
 		games:            make(map[string]*model.Game),
@@ -145,8 +150,38 @@ func NewGameManager() *GameManager {
 
 	// Start matchmaking processor
 	go gm.processMatchmaking()
+	go gm.reapAbandonedGames()
 
 	return gm
+}
+
+// reapAbandonedGames drops games nobody is connected to and nobody has touched in
+// a while. Games were only ever added to the map, so a long-running server grew
+// its memory with every abandoned or finished game.
+func (gm *GameManager) reapAbandonedGames() {
+	ticker := time.NewTicker(gameSweepPeriod)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		cutoff := time.Now().Add(-gameIdleTimeout)
+
+		gm.mu.Lock()
+		var stale []*model.Game
+		for gameID, game := range gm.games {
+			if game.ConnectionCount() == 0 && game.IdleSince().Before(cutoff) {
+				stale = append(stale, game)
+				delete(gm.games, gameID)
+			}
+		}
+		gm.mu.Unlock()
+
+		for _, game := range stale {
+			game.Close()
+		}
+		if len(stale) > 0 {
+			log.Printf("reaped %d abandoned game(s)", len(stale))
+		}
+	}
 }
 
 func (gm *GameManager) CreateGame(gameID string) error {
@@ -216,7 +251,7 @@ func (gm *GameManager) MakeMove(gameID string, playerID string, move model.WSMov
 		return errors.New("game not found")
 	}
 
-	if err := game.MakeMove(move); err != nil {
+	if err := game.MakeMove(playerID, move); err != nil {
 		return err
 	}
 
@@ -238,7 +273,7 @@ func (gm *GameManager) CreateBotGame(playerID string, difficulty int) (string, m
 	if err != nil {
 		return "", "", err
 	}
-	botColor, err := game.AddPlayer("bot")
+	botColor, err := game.AddPlayer(model.BotPlayerID)
 	if err != nil {
 		return "", "", err
 	}
@@ -265,16 +300,19 @@ func (gm *GameManager) playBotMove(game *model.Game, difficulty int) {
 	if !ok {
 		return // No legal moves: the game is already over.
 	}
-	if err := game.MakeMove(move); err != nil {
+	if err := game.MakeMove(model.BotPlayerID, move); err != nil {
 		log.Printf("bot: failed to apply move %+v: %v", move, err)
 	}
 }
 
+// RegisterConnection attaches a client to a game. The manager lock is released
+// before touching the game: registering writes to WebSockets, and a slow or dead
+// client must not be able to stall every other game on the server.
 func (gm *GameManager) RegisterConnection(gameID string, playerID string, conn *websocket.Conn) error {
-	gm.mu.Lock()
-	defer gm.mu.Unlock()
-
+	gm.mu.RLock()
 	game, exists := gm.games[gameID]
+	gm.mu.RUnlock()
+
 	if !exists {
 		return errors.New("game not found")
 	}
@@ -282,10 +320,23 @@ func (gm *GameManager) RegisterConnection(gameID string, playerID string, conn *
 	return game.RegisterConnection(playerID, conn)
 }
 
-func (gm *GameManager) UnregisterConnection(gameID string, playerID string) {
-	gm.mu.Lock()
-	defer gm.mu.Unlock()
+func (gm *GameManager) SendError(gameID string, playerID string, message string) bool {
+	gm.mu.RLock()
 	game, exists := gm.games[gameID]
+	gm.mu.RUnlock()
+
+	if !exists {
+		return false
+	}
+
+	return game.SendError(playerID, message)
+}
+
+func (gm *GameManager) UnregisterConnection(gameID string, playerID string) {
+	gm.mu.RLock()
+	game, exists := gm.games[gameID]
+	gm.mu.RUnlock()
+
 	if !exists {
 		return
 	}

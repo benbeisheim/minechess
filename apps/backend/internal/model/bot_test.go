@@ -59,7 +59,7 @@ func TestBotMoveFallsBackToRandomLegalMove(t *testing.T) {
 	if !legal {
 		t.Fatalf("fallback move is not legal: %+v", move)
 	}
-	if err := g.MakeMove(move); err != nil {
+	if err := g.MakeMove(whitePlayer, move); err != nil {
 		t.Fatalf("applying the fallback move failed: %v", err)
 	}
 }

@@ -16,6 +16,8 @@ interface ChessGameProps {
     playerColor: PlayerColor;
     handleLeaveGame: () => void;
     opponentLabel?: string | null;
+    /** True when the opponent is one of the (still in-development) bots. */
+    opponentIsBot?: boolean;
 }
 
 const selectGameState = createSelector(
@@ -41,7 +43,7 @@ const selectGameState = createSelector(
     })
 );
 
-const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveGame, opponentLabel }) => {
+const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveGame, opponentLabel, opponentIsBot }) => {
     const dispatch = useAppDispatch();
     const gameState = useAppSelector(selectGameState);
     const opponentLeft = useAppSelector((state: RootState) => state.game.opponentLeft);
@@ -116,6 +118,7 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
                     selectedColor={selectedColor}
                     onLeaveGame={leaveGame}
                     opponentLabel={opponentLabel}
+                    opponentIsBot={opponentIsBot}
                 />
             </aside>
         </div>
