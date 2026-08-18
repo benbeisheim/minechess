@@ -1,9 +1,11 @@
 interface ResolveProps {
     resolve: string | null;
     toMove: string;
+    /** True while black still owes the mine the game opens with. */
+    awaitingInitialMine?: boolean;
 }
 
-const Resolve: React.FC<ResolveProps> = ({ resolve, toMove }) => {
+const Resolve: React.FC<ResolveProps> = ({ resolve, toMove, awaitingInitialMine }) => {
     if (resolve) {
         return (
             <div className="rounded-xl bg-gray-800 px-4 py-2 text-center text-lg font-bold uppercase tracking-wide text-white">
@@ -19,7 +21,7 @@ const Resolve: React.FC<ResolveProps> = ({ resolve, toMove }) => {
                     toMove === "white" ? "border-gray-400 bg-white" : "border-gray-600 bg-gray-900"
                 }`}
             />
-            <span className="capitalize">{toMove} to move</span>
+            <span className="capitalize">{awaitingInitialMine ? `${toMove} to place the opening mine` : `${toMove} to move`}</span>
         </div>
     );
 };

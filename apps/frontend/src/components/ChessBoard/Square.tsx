@@ -46,7 +46,9 @@ const Square: React.FC<SquareProps> = ({
     const isMineSquare = useAppSelector(({ game }) => game.mine?.x === x && game.mine?.y === y);
     const isLastMineSquare = useAppSelector(({ game }) => game.lastMine?.x === x && game.lastMine?.y === y);
     const isExplosionSquare = useAppSelector(({ game }) => game.explosion?.x === x && game.explosion?.y === y);
-    const hasTemporaryMove = useAppSelector(({ game }) => game.temporaryMove !== null);
+    // True while this player still owes a mine: the opening one, or the one that
+    // completes their move. Mines are out of the game once a side is a lone king.
+    const isPlacingMine = useAppSelector(({ game }) => game.awaitingMinePlacement);
     const toMove = useAppSelector(({ game }) => game.toMove);
     const isKingTargetSquare = useAppSelector(({ game }) =>
         game.blackKingAttackedSquares.some(square => square.x === x && square.y === y) ||
@@ -85,7 +87,7 @@ const Square: React.FC<SquareProps> = ({
                 isTemporaryMove={false}
                 isLastMine={false}
                 />}
-            {isHovered && hasTemporaryMove && !piece && !isKingTargetSquare &&
+            {isHovered && isPlacingMine && !piece && !isKingTargetSquare &&
             <SquareHighlight size={squareSize} isPiece={false} isLight={isLight} isTemporaryMove={true} isLastMine={false} />}
             {!isPromotionSquare && piece && (
                 <Piece 
@@ -99,7 +101,7 @@ const Square: React.FC<SquareProps> = ({
                     }}
                 />
             )}
-            {isLastMineSquare && (orientation !== toMove || !hasTemporaryMove) && (
+            {isLastMineSquare && (orientation !== toMove || !isPlacingMine) && (
                 <SquareHighlight size={squareSize} isPiece={false} isLight={isLight} isTemporaryMove={true} isLastMine={true} />
             )}
             {isPromotionSquare && ( <PromotionChoice handlePromotionClick={handlePromotionClick} orientation={orientation} /> )}

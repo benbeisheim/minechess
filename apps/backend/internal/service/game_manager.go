@@ -262,6 +262,28 @@ func (gm *GameManager) MakeMove(gameID string, playerID string, move model.WSMov
 	return nil
 }
 
+// PlaceInitialMine applies black's opening mine, the placement the game now opens
+// with. White's first move follows it.
+func (gm *GameManager) PlaceInitialMine(gameID string, playerID string, mine model.Position) error {
+	gm.mu.RLock()
+	game, exists := gm.games[gameID]
+	gm.mu.RUnlock()
+
+	if !exists {
+		return errors.New("game not found")
+	}
+
+	if err := game.PlaceInitialMine(playerID, mine); err != nil {
+		return err
+	}
+
+	// A bot seated as white opens the game once the mine is down.
+	if difficulty, ok := game.BotShouldMove(); ok {
+		go gm.playBotMove(game, difficulty)
+	}
+	return nil
+}
+
 func (gm *GameManager) CreateBotGame(playerID string, difficulty int) (string, model.PlayerColor, error) {
 	gm.mu.Lock()
 	defer gm.mu.Unlock()
@@ -305,6 +327,23 @@ func (gm *GameManager) playBotMove(game *model.Game, difficulty int) {
 	}
 }
 
+// playBotInitialMine places the opening mine for a bot seated as black, which is
+// what starts a single-player game.
+func (gm *GameManager) playBotInitialMine(game *model.Game) {
+	// The same short pause the bot's moves get, so the game does not open with an
+	// instantaneous placement.
+	time.Sleep(600 * time.Millisecond)
+
+	// A reconnect can start a second placement while this one is still waiting; the
+	// re-check keeps the loser of that race quiet.
+	if !game.BotShouldPlaceInitialMine() {
+		return
+	}
+	if err := game.PlaceInitialMine(model.BotPlayerID, game.BotInitialMine()); err != nil {
+		log.Printf("bot: failed to place the opening mine: %v", err)
+	}
+}
+
 // RegisterConnection attaches a client to a game. The manager lock is released
 // before touching the game: registering writes to WebSockets, and a slow or dead
 // client must not be able to stall every other game on the server.
@@ -317,7 +356,16 @@ func (gm *GameManager) RegisterConnection(gameID string, playerID string, conn *
 		return errors.New("game not found")
 	}
 
-	return game.RegisterConnection(playerID, conn)
+	if err := game.RegisterConnection(playerID, conn); err != nil {
+		return err
+	}
+
+	// A bot game opens with the bot's mine, so it is the connection - not a human
+	// move - that gets the bot going.
+	if game.BotShouldPlaceInitialMine() {
+		go gm.playBotInitialMine(game)
+	}
+	return nil
 }
 
 func (gm *GameManager) SendError(gameID string, playerID string, message string) bool {

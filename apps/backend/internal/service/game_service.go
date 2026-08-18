@@ -52,6 +52,11 @@ func (gs *GameService) HandleMove(gameID string, playerID string, move model.WSM
 	return nil
 }
 
+// HandleMinePlacement applies black's opening mine.
+func (gs *GameService) HandleMinePlacement(gameID string, playerID string, mine model.Position) error {
+	return gs.gameManager.PlaceInitialMine(gameID, playerID, mine)
+}
+
 func (gs *GameService) RegisterConnection(gameID string, playerID string, conn *websocket.Conn) error {
 	return gs.gameManager.RegisterConnection(gameID, playerID, conn)
 }

@@ -199,6 +199,7 @@ export function TestInterface() {
                     <li>
                         <strong>Mine Placement:</strong>
                         <ul className="list-disc ml-6 space-y-1">
+                            <li>Black opens the game by placing a mine. White then plays the first move.</li>
                             <li>After each move, the player places one hidden mine on any unoccupied square.</li>
                             <li>Mines last one turn, expiring after the opponent completes their next move.</li>
                             <li>Mines cannot be placed on squares either king can currently move to.</li>
@@ -209,6 +210,13 @@ export function TestInterface() {
                         <ul className="list-disc ml-6 space-y-1">
                             <li>Any piece except a pawn that moves onto a mined square is immediately captured.</li>
                             <li>Pawns are immune to mines.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Dropping the Mines:</strong>
+                        <ul className="list-disc ml-6 space-y-1">
+                            <li>As soon as either player has nothing left but their king, the mines are dropped.</li>
+                            <li>Any armed mine is defused and the game plays on as regular chess.</li>
                         </ul>
                     </li>
                     <li>

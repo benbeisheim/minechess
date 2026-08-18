@@ -25,12 +25,13 @@ const PlayerControl: React.FC<PlayerControlProps> = ({
     const playerColor = useAppSelector((state: RootState) => state.game.playerColor);
     const resolve = useAppSelector((state: RootState) => state.game.resolve);
     const toMove = useAppSelector((state: RootState) => state.game.toMove);
+    const awaitingInitialMine = useAppSelector((state: RootState) => state.game.awaitingInitialMine);
 
     const opponentColor = playerColor === "white" ? "black" : "white";
 
     return (
         <div className="flex h-full flex-col gap-3 rounded-2xl border border-gray-200 bg-white/70 p-3 shadow-lg backdrop-blur dark:border-white/10 dark:bg-darkest-gray/80">
-            <Resolve resolve={resolve} toMove={toMove} />
+            <Resolve resolve={resolve} toMove={toMove} awaitingInitialMine={awaitingInitialMine} />
 
             <PlayerCard
                 player={players[opponentColor]}

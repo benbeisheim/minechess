@@ -1,10 +1,12 @@
 package model
 
+// WSMove is a move as the client sends it. Mine is nil when the move carries no
+// mine: mines leave the game once either side is down to a lone king.
 type WSMove struct {
 	From      Position
 	To        Position
 	Promotion PieceType
-	Mine      Position
+	Mine      *Position
 }
 
 type CastleRookMove struct {

@@ -80,6 +80,15 @@ func (wsc *WebSocketController) handleMessage(gameID, playerID string, msg ws.Me
 		}
 		return wsc.gameService.HandleMove(gameID, playerID, move)
 
+	case ws.MessageTypePlaceMine:
+		var placement struct {
+			Mine model.Position `json:"mine"`
+		}
+		if err := json.Unmarshal(msg.Payload, &placement); err != nil {
+			return err
+		}
+		return wsc.gameService.HandleMinePlacement(gameID, playerID, placement.Mine)
+
 	default:
 		return fmt.Errorf("unknown message type: %s", msg.Type)
 	}

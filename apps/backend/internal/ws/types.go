@@ -9,6 +9,7 @@ type MessageType string
 
 const (
 	MessageTypeMove         MessageType = "move"
+	MessageTypePlaceMine    MessageType = "placeMine"
 	MessageTypeGameState    MessageType = "gameState"
 	MessageTypeDrawOffer    MessageType = "drawOffer"
 	MessageTypeResign       MessageType = "resign"

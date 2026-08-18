@@ -92,6 +92,12 @@ type GameState struct {
 	Explosion                *Position   `json:"explosion"`              // Made nullable
 	WhiteKingAttackedSquares []Position  `json:"whiteKingAttackedSquares"`
 	BlackKingAttackedSquares []Position  `json:"blackKingAttackedSquares"`
+	// AwaitingInitialMine is true until black arms the opening mine. The game now
+	// starts with that placement rather than with white's first move.
+	AwaitingInitialMine bool `json:"awaitingInitialMine"`
+	// MinesEnabled goes false for good once either side is reduced to a lone king;
+	// from that point the game continues as regular chess.
+	MinesEnabled bool `json:"minesEnabled"`
 }
 
 type CapturedPieces struct {
@@ -119,9 +125,10 @@ func NewGameConnections() *GameConnections {
 
 func newGameState() GameState {
 	return GameState{
-		Sound:           "",
-		Board:           newBoard(),
-		ToMove:          "white",
+		Sound: "",
+		Board: newBoard(),
+		// Black opens the game by arming a mine, so black is on move first.
+		ToMove:          "black",
 		MoveHistory:     make([]Move, 0),
 		CapturedPieces:  newCapturedPieces(),
 		IsCheck:         false,
@@ -152,6 +159,8 @@ func newGameState() GameState {
 		Explosion:                nil,
 		WhiteKingAttackedSquares: []Position{{X: 3, Y: 7}, {X: 5, Y: 7}, {X: 3, Y: 6}, {X: 4, Y: 6}, {X: 5, Y: 6}},
 		BlackKingAttackedSquares: []Position{{X: 3, Y: 0}, {X: 5, Y: 0}, {X: 3, Y: 1}, {X: 4, Y: 1}, {X: 5, Y: 1}},
+		AwaitingInitialMine:      true,
+		MinesEnabled:             true,
 	}
 }
 
@@ -317,6 +326,9 @@ func (g *Game) applyMove(playerID string, move WSMove) (resync bool, err error) 
 	if playerColor != g.state.ToMove {
 		return true, errors.New("not your turn")
 	}
+	if g.state.AwaitingInitialMine {
+		return true, errors.New("black must place the opening mine first")
+	}
 
 	// Guard against out-of-bounds coordinates before indexing the board.
 	if !isValidPosition(move.From) || !isValidPosition(move.To) {
@@ -341,8 +353,14 @@ func (g *Game) applyMove(playerID string, move WSMove) (resync bool, err error) 
 		return true, err
 	}
 	move.Promotion = promotion
-	if err := g.validateMinePlacement(move); err != nil {
-		return true, err
+	// A move that leaves either side with nothing but a king ends the mine mechanic,
+	// so it carries no mine; anything the client sent with it is dropped.
+	if g.minesActiveAfterMove(move.From, move.To) {
+		if err := g.validateMinePlacement(move); err != nil {
+			return true, err
+		}
+	} else {
+		move.Mine = nil
 	}
 
 	g.clockFor(g.state.ToMove).Stop()
@@ -360,6 +378,58 @@ func (g *Game) applyMove(playerID string, move WSMove) (resync bool, err error) 
 	}
 
 	// update client clock for both players
+	g.state.Players.White.TimeLeft = g.whiteClock.Deciseconds()
+	g.state.Players.Black.TimeLeft = g.blackClock.Deciseconds()
+	g.lastActivity = time.Now()
+
+	return false, nil
+}
+
+// PlaceInitialMine applies black's opening mine and pushes the resulting state.
+// The game starts with this placement: white cannot move until it is down.
+func (g *Game) PlaceInitialMine(playerID string, mine Position) error {
+	resync, err := g.applyInitialMine(playerID, mine)
+	if err == nil || resync {
+		g.broadcastState()
+	}
+	return err
+}
+
+func (g *Game) applyInitialMine(playerID string, mine Position) (resync bool, err error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	if g.state.Resolve != nil {
+		return false, errors.New("game is already over")
+	}
+	if g.state.Players.White.ID == "" || g.state.Players.Black.ID == "" {
+		return false, errors.New("waiting for an opponent to join")
+	}
+	if g.colorOf(playerID) != "black" {
+		return false, errors.New("only black places the opening mine")
+	}
+	if !g.state.AwaitingInitialMine {
+		return true, errors.New("the opening mine has already been placed")
+	}
+
+	// The opening mine goes on the board as it stands, so the placement rule is
+	// applied to the current position rather than to a position after a move.
+	if err := validateMineSquare(mine, g.occupiedSquares(), g.currentKingAdjacency()); err != nil {
+		return true, err
+	}
+
+	g.clockFor(g.state.ToMove).Stop()
+
+	mineCopy := mine
+	g.mine = &mineCopy
+	g.state.AwaitingInitialMine = false
+	g.state.Sound = "minePlaced"
+
+	// Hand the move to white, exactly as completing a move does.
+	g.switchTurn()
+	g.clockFor(g.state.ToMove).Start()
+	g.armFlagTimer(g.state.ToMove)
+
 	g.state.Players.White.TimeLeft = g.whiteClock.Deciseconds()
 	g.state.Players.Black.TimeLeft = g.blackClock.Deciseconds()
 	g.lastActivity = time.Now()
@@ -413,8 +483,9 @@ func resolvePromotion(piece *Piece, move WSMove) (PieceType, error) {
 	return move.Promotion, nil
 }
 
-// startIfReady starts white's clock the first time both players are seated, so
-// white's opening move is timed like every other move. Callers must hold g.mu.
+// startIfReady starts the clock of the side to move the first time both players are
+// seated. That is black, whose opening mine placement is timed like any other turn.
+// Callers must hold g.mu.
 func (g *Game) startIfReady() {
 	if g.started || g.state.Resolve != nil {
 		return
@@ -423,8 +494,8 @@ func (g *Game) startIfReady() {
 		return
 	}
 	g.started = true
-	g.whiteClock.Start()
-	g.armFlagTimer("white")
+	g.clockFor(g.state.ToMove).Start()
+	g.armFlagTimer(g.state.ToMove)
 }
 
 // armFlagTimer schedules the flag fall for the side to move. Callers must hold g.mu.
@@ -668,12 +739,21 @@ func (g *Game) executeMove(move WSMove) error {
 	g.state.WhiteKingAttackedSquares = g.getKingAttackedSquares("white")
 	g.state.BlackKingAttackedSquares = g.getKingAttackedSquares("black")
 
-	// Update mine state
-	if g.mine != nil {
-		mineCopy := *g.mine
-		g.state.LastMine = &mineCopy
+	// Mines leave the game for good the moment either side is down to a lone king.
+	// From then on this is ordinary chess, so nothing stays armed and the expired
+	// mine marker is cleared rather than sitting on the board for the rest of the
+	// game.
+	g.state.MinesEnabled = g.minesActive()
+	if g.state.MinesEnabled {
+		if g.mine != nil {
+			mineCopy := *g.mine
+			g.state.LastMine = &mineCopy
+		}
+		g.mine = clonePosition(move.Mine)
+	} else {
+		g.mine = nil
+		g.state.LastMine = nil
 	}
-	g.mine = &move.Mine
 
 	// Switch turn and check game state
 	g.switchTurn()
@@ -707,26 +787,34 @@ func isValidPosition(pos Position) bool {
 	return pos.X >= 0 && pos.X < 8 && pos.Y >= 0 && pos.Y < 8
 }
 
-// validateMinePlacement enforces the mine rules server-side: the square must be on
-// the board, empty once the move lands, and not one either king could step onto.
-// The server used to accept whatever square the client sent.
+// validateMinePlacement enforces the mine rules server-side for the mine that comes
+// with a move: the square must be on the board, empty once the move lands, and not
+// one either king could step onto. The server used to accept whatever square the
+// client sent.
 func (g *Game) validateMinePlacement(move WSMove) error {
-	if !isValidPosition(move.Mine) {
+	if move.Mine == nil {
+		return errors.New("invalid move, no mine placed")
+	}
+	return validateMineSquare(*move.Mine, g.occupancyAfterMove(move.From, move.To), g.kingAdjacencyAfterMove(move.From, move.To))
+}
+
+// validateMineSquare is the placement rule itself. The opening mine is checked
+// against the board as it stands, a move's mine against the board the move leads to.
+func validateMineSquare(mine Position, occupied, kingAdjacent map[Position]bool) error {
+	if !isValidPosition(mine) {
 		return errors.New("invalid mine, out of bounds")
 	}
-	if g.occupancyAfterMove(move.From, move.To)[move.Mine] {
+	if occupied[mine] {
 		return errors.New("invalid mine, square is occupied")
 	}
-	if g.kingAdjacencyAfterMove(move.From, move.To)[move.Mine] {
+	if kingAdjacent[mine] {
 		return errors.New("invalid mine, square is adjacent to a king")
 	}
 	return nil
 }
 
-// occupancyAfterMove reports which squares hold a piece once the given move lands,
-// accounting for the vacated square, an en passant capture and a castling rook.
-// This mirrors the board the client places its mine on.
-func (g *Game) occupancyAfterMove(from, to Position) map[Position]bool {
+// occupiedSquares reports which squares hold a piece in the current position.
+func (g *Game) occupiedSquares() map[Position]bool {
 	occupied := make(map[Position]bool, 32)
 	for y := 0; y < 8; y++ {
 		for x := 0; x < 8; x++ {
@@ -735,6 +823,65 @@ func (g *Game) occupancyAfterMove(from, to Position) map[Position]bool {
 			}
 		}
 	}
+	return occupied
+}
+
+// minesActive reports whether the mine mechanic still applies. It is dropped as soon
+// as either player has nothing but their king left, and the game plays on as regular
+// chess from there.
+func (g *Game) minesActive() bool {
+	white, black := g.nonKingCounts()
+	return white > 0 && black > 0
+}
+
+// minesActiveAfterMove is minesActive for the position the given move leads to, which
+// is what decides whether that move has to carry a mine. A capture is the only way a
+// move itself can reduce a side to a lone king; a mine the move sets off is accounted
+// for afterwards, when the move has been applied.
+func (g *Game) minesActiveAfterMove(from, to Position) bool {
+	white, black := g.nonKingCounts()
+	remove := func(color string) {
+		if color == "white" {
+			white--
+		} else {
+			black--
+		}
+	}
+
+	if captured := g.state.Board.Board[to.Y][to.X]; captured != nil && captured.Type != King {
+		remove(captured.Color)
+	}
+	piece := g.state.Board.Board[from.Y][from.X]
+	if piece != nil && piece.Type == Pawn && g.state.EnPassantTarget != nil && to == *g.state.EnPassantTarget {
+		remove(getOtherColor(piece.Color))
+	}
+
+	return white > 0 && black > 0
+}
+
+// nonKingCounts is how many pieces besides the king each side has on the board.
+func (g *Game) nonKingCounts() (white, black int) {
+	for y := 0; y < 8; y++ {
+		for x := 0; x < 8; x++ {
+			piece := g.state.Board.Board[y][x]
+			if piece == nil || piece.Type == King {
+				continue
+			}
+			if piece.Color == "white" {
+				white++
+			} else {
+				black++
+			}
+		}
+	}
+	return white, black
+}
+
+// occupancyAfterMove reports which squares hold a piece once the given move lands,
+// accounting for the vacated square, an en passant capture and a castling rook.
+// This mirrors the board the client places its mine on.
+func (g *Game) occupancyAfterMove(from, to Position) map[Position]bool {
+	occupied := g.occupiedSquares()
 
 	piece := g.state.Board.Board[from.Y][from.X]
 	delete(occupied, from)
@@ -765,6 +912,11 @@ func (g *Game) occupancyAfterMove(from, to Position) map[Position]bool {
 	return occupied
 }
 
+// currentKingAdjacency is the set of squares either king could step onto right now.
+func (g *Game) currentKingAdjacency() map[Position]bool {
+	return kingAdjacency(g.state.Board.WhiteKingPosition, g.state.Board.BlackKingPosition)
+}
+
 // kingAdjacencyAfterMove is the set of squares either king could step onto once the
 // given move lands — the squares mines may not be placed on.
 func (g *Game) kingAdjacencyAfterMove(from, to Position) map[Position]bool {
@@ -776,9 +928,13 @@ func (g *Game) kingAdjacencyAfterMove(from, to Position) map[Position]bool {
 			blackKing = to
 		}
 	}
+	return kingAdjacency(whiteKing, blackKing)
+}
 
+// kingAdjacency is the set of squares adjacent to the given kings.
+func kingAdjacency(kings ...Position) map[Position]bool {
 	adjacent := make(map[Position]bool, 16)
-	for _, king := range []Position{whiteKing, blackKing} {
+	for _, king := range kings {
 		for dy := -1; dy <= 1; dy++ {
 			for dx := -1; dx <= 1; dx++ {
 				if dx == 0 && dy == 0 {

@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Position, GameState, PlayerColor, PieceType } from '../types/chess';
 import { getLegalMoves, makeTemporaryMove, makeTemporaryPromotionMove, undoTemporaryMove } from '../gameLogic/rules';
+import { isLegalMineSquare, minesActive } from '../gameLogic/mines';
 import { getInitialPosition } from '../utils/pieces';
 import { soundManager } from '../utils/sounds';
 
@@ -11,7 +12,8 @@ const initialState: GameState = {
     boardState: getInitialPosition(),
     selectedSquare: null,
     legalMoves: [],
-    toMove: 'white',
+    // Black opens the game by arming a mine, so black is on move first.
+    toMove: 'black',
     enPassantTarget: null,
     moveHistory: [],
     capturedPieces: {
@@ -41,7 +43,10 @@ const initialState: GameState = {
     explosion: null,
     blackKingAttackedSquares: [],
     whiteKingAttackedSquares: [],
-    opponentLeft: false
+    opponentLeft: false,
+    awaitingInitialMine: true,
+    minesEnabled: true,
+    awaitingMinePlacement: false
 };
 
 // Create the slice
@@ -62,6 +67,19 @@ const gameSlice = createSlice({
                 return state;
             }
 
+            // The game opens with black arming a mine. Until it is down there is
+            // nothing else to do: no piece may be picked up by either side.
+            if (state.awaitingInitialMine) {
+                if (isLegalMineSquare(state.boardState.board, state.whiteKingAttackedSquares, state.blackKingAttackedSquares, position)) {
+                    state.mine = position;
+                    state.awaitingInitialMine = false;
+                    state.awaitingMinePlacement = false;
+                    state.toMove = 'white';
+                    soundManager.play('minePlaced');
+                }
+                return state;
+            }
+
             const piece = state.boardState.board[position.y][position.x];
 
             if (piece?.color === playerColor) {
@@ -69,6 +87,7 @@ const gameSlice = createSlice({
                 if (state.temporaryMove) {
                     state = undoTemporaryMove(state, state.temporaryMove);
                     state.temporaryMove = null;
+                    state.awaitingMinePlacement = false;
                 }
                 state.selectedSquare = position;
                 state.legalMoves = getLegalMoves(position, state);
@@ -114,17 +133,23 @@ const gameSlice = createSlice({
                         } else {
                             soundManager.play('move');
                         }
+                        // A move only waits on a mine while the mine mechanic is
+                        // still in play. Once either side is down to a lone king the
+                        // destination click is the whole turn.
+                        state.awaitingMinePlacement = minesActive(state.boardState.board);
+                        if (!state.awaitingMinePlacement) {
+                            state.temporaryMove = null;
+                            state.toMove = state.toMove === 'white' ? 'black' : 'white';
+                        }
                     } else {
                         // Invalid move square - just clear selection
                         state.selectedSquare = null;
                         state.legalMoves = [];
                         state.promotionSquare = null;
                     }
-                } else {
-                    // If a pending move destination is set, we're waiting for mine placement
-                    if (state.boardState.board[position.y][position.x] || 
-                        state.blackKingAttackedSquares.some(square => square.x === position.x && square.y === position.y) || 
-                        state.whiteKingAttackedSquares.some(square => square.x === position.x && square.y === position.y)) {
+                } else if (state.awaitingMinePlacement) {
+                    // The move is made and we're waiting for the mine that goes with it
+                    if (!isLegalMineSquare(state.boardState.board, state.whiteKingAttackedSquares, state.blackKingAttackedSquares, position)) {
                         // If the square is occupied, or attacked by one of the kings, clear selection
                         state.selectedSquare = null;
                         state.legalMoves = [];
@@ -134,6 +159,7 @@ const gameSlice = createSlice({
                         state.mine = position;
                         state.temporaryMove = null;
                         state.selectedSquare = null;
+                        state.awaitingMinePlacement = false;
                         state.toMove = state.toMove === 'white' ? 'black' : 'white';
                         soundManager.play('minePlaced');
                     }
@@ -170,6 +196,12 @@ const gameSlice = createSlice({
             }
             if (state.temporaryMove) {
                 state.boardState.board = makeTemporaryPromotionMove(state.boardState.board, state.temporaryMove, state.promotionPiece);
+                // As with any other move, the mine only follows while mines are in play.
+                state.awaitingMinePlacement = minesActive(state.boardState.board);
+                if (!state.awaitingMinePlacement) {
+                    state.temporaryMove = null;
+                    state.toMove = state.toMove === 'white' ? 'black' : 'white';
+                }
             }
             state.promotionSquare = null;
             state.selectedSquare = null;
@@ -189,7 +221,11 @@ const gameSlice = createSlice({
             return {
                 ...state,
                 ...action.payload,
-                mine: action.payload.toMove !== state.playerColor ? state.mine : null,
+                // Our own mine stays on screen until it expires on the opponent's
+                // reply, and disappears for good once mines leave the game.
+                mine: action.payload.minesEnabled && action.payload.toMove !== state.playerColor ? state.mine : null,
+                // The only mine owed on a fresh server state is black's opening one.
+                awaitingMinePlacement: action.payload.awaitingInitialMine && action.payload.toMove === state.playerColor,
             };
         },
     }

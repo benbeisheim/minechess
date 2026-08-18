@@ -27,7 +27,11 @@ const PlayerCard: React.FC<{
     const dispatch = useAppDispatch();
     const toMove = useAppSelector((state: RootState) => state.game.toMove);
     const resolve = useAppSelector((state: RootState) => state.game.resolve);
-    const hasMoved = useAppSelector((state: RootState) => state.game.moveHistory.length !== 0);
+    // The game is under way once both seats are filled: black is already on the
+    // clock then, deciding where the opening mine goes.
+    const bothPlayersSeated = useAppSelector(
+        (state: RootState) => !!state.game.players.white.name && !!state.game.players.black.name,
+    );
     const capturedPieces = useAppSelector((state: RootState) => state.game.capturedPieces);
     const myColor = useAppSelector((state: RootState) => state.game.playerColor);
 
@@ -36,7 +40,7 @@ const PlayerCard: React.FC<{
     const waitingForOpponent = !isSelf && !player.name?.trim();
 
     // The clock runs only for the side to move, once the game is under way.
-    const isActive = !resolve && player.timeLeft > 0 && toMove === player.color && hasMoved;
+    const isActive = !resolve && player.timeLeft > 0 && toMove === player.color && bothPlayersSeated;
 
     // Show only the opponent pieces this player has captured.
     const playerCapturedPieces = player.color === "white" ? capturedPieces.white : capturedPieces.black;

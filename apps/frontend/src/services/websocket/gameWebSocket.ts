@@ -3,10 +3,10 @@
 
 import { AppDispatch } from "../../store";
 import { updateGameState, setOpponentLeft } from "../../store/gameSlice";
-import { WSMove } from "../../types/chess";
+import { Position, WSMove } from "../../types/chess";
 import { config } from "../../config/environment";
 import { getOrCreatePlayerId } from "../playerIdentification";
-export type WSMessageType = 'move' | 'gameState' | 'error';
+export type WSMessageType = 'move' | 'placeMine' | 'gameState' | 'opponentLeft' | 'error';
 
 export interface WSMessage {
     type: WSMessageType;
@@ -88,6 +88,18 @@ export class GameWebSocket {
         } else {
             console.error('WebSocket is not connected');
             // Optionally dispatch an error state
+        }
+    }
+
+    /** Black's opening mine, which the game starts with and which carries no move. */
+    public placeMine(mine: Position) {
+        if (this.socket?.readyState === WebSocket.OPEN) {
+            this.socket.send(JSON.stringify({
+                type: 'placeMine',
+                payload: { mine }
+            }));
+        } else {
+            console.error('WebSocket is not connected');
         }
     }
 

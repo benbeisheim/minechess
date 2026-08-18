@@ -10,6 +10,7 @@ import { useEffect, useState, useRef } from "react";
 import { PlayerColor, BoardColorObj } from "../../types/chess";
 import { RootState } from "../../store";
 import { createSelector } from "@reduxjs/toolkit";
+import { isLegalMineSquare, minesActiveAfterMove } from "../../gameLogic/mines";
 
 interface ChessGameProps {
     gameId: string;
@@ -26,20 +27,28 @@ const selectGameState = createSelector(
     (state: RootState) => state.game.selectedSquare,
     (state: RootState) => state.game.temporaryMove,
     (state: RootState) => state.game.promotionPiece,
+    (state: RootState) => state.game.promotionSquare,
     (state: RootState) => state.game.legalMoves,
     (state: RootState) => state.game.resolve,
     (state: RootState) => state.game.blackKingAttackedSquares,
     (state: RootState) => state.game.whiteKingAttackedSquares,
-    (board, players, selectedSquare, temporaryMove, promotionPiece, legalMoves, resolve, blackKingAttackedSquares, whiteKingAttackedSquares) => ({
+    (state: RootState) => state.game.enPassantTarget,
+    (state: RootState) => state.game.awaitingInitialMine,
+    (state: RootState) => state.game.awaitingMinePlacement,
+    (board, players, selectedSquare, temporaryMove, promotionPiece, promotionSquare, legalMoves, resolve, blackKingAttackedSquares, whiteKingAttackedSquares, enPassantTarget, awaitingInitialMine, awaitingMinePlacement) => ({
         board,
         players,
         selectedSquare,
         temporaryMove,
         promotionPiece,
+        promotionSquare,
         legalMoves,
         resolve,
         blackKingAttackedSquares,
-        whiteKingAttackedSquares
+        whiteKingAttackedSquares,
+        enPassantTarget,
+        awaitingInitialMine,
+        awaitingMinePlacement
     })
 );
 
@@ -65,10 +74,24 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
         handleLeaveGame();
     };
 
+    // The board this click is read against is the one on screen, so it already has
+    // any temporary move applied — which is exactly the board a mine is placed on.
+    const isMineSquare = (position: Position) =>
+        isLegalMineSquare(gameState.board, gameState.whiteKingAttackedSquares, gameState.blackKingAttackedSquares, position);
+
     const onSquareClick = (position: Position) => {
-        const selectedSquare = gameState.selectedSquare;
-        const temporaryMove = gameState.temporaryMove;
-        const promotionPiece = gameState.promotionPiece;
+        const { selectedSquare, temporaryMove, promotionPiece, legalMoves, enPassantTarget } = gameState;
+
+        // The game opens with black arming a mine, before white's first move. No
+        // piece is involved, so this click is a placement and nothing else.
+        if (gameState.awaitingInitialMine) {
+            if (playerColor === 'black' && isMineSquare(position)) {
+                dispatch(selectSquare({ position, playerColor }));
+                gameSocket.current?.placeMine(position);
+            }
+            return;
+        }
+
         // For any move besides promotion, select the square
         if (selectedSquare && gameState.board[selectedSquare.y][selectedSquare.x]?.type === 'pawn' && 
         (position.y === 0 || position.y === 7) && 
@@ -78,22 +101,33 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
         } else {
             dispatch(selectSquare({ position, playerColor }));
         }
-        
-        // If this click would result in a move, send it to the server
-        if (temporaryMove && gameState.board[position.y][position.x] === null &&
-            !gameState.blackKingAttackedSquares.some(square => square.x === position.x &&
-                square.y === position.y) && !gameState.whiteKingAttackedSquares.some(square => square.x === position.x && square.y === position.y)) {
+
+        // If this click would result in a move, send it to the server. It completes
+        // the move either by dropping the mine that goes with it, or — once mines
+        // have left the game — by being the destination of the move itself.
+        if (gameState.awaitingMinePlacement && temporaryMove && isMineSquare(position)) {
             gameSocket.current?.sendMove({
                 from: temporaryMove.from.position,
                 to: temporaryMove.to.position,
                 mine: position,
                 ...(promotionPiece ? { promotion: promotionPiece } : {}),
             });
+        } else if (selectedSquare && legalMoves.some(move => move.x === position.x && move.y === position.y) &&
+            !minesActiveAfterMove(gameState.board, selectedSquare, position, enPassantTarget)) {
+            gameSocket.current?.sendMove({ from: selectedSquare, to: position });
         }
     };
 
     const handlePromotionClick = (pieceType: PieceType) => {
+        const { selectedSquare, promotionSquare, enPassantTarget } = gameState;
         dispatch(selectPromotionPiece(pieceType));
+
+        // With mines out of the game the promotion choice is what completes the move;
+        // otherwise it is sent once the mine is placed.
+        if (selectedSquare && promotionSquare &&
+            !minesActiveAfterMove(gameState.board, selectedSquare, promotionSquare, enPassantTarget)) {
+            gameSocket.current?.sendMove({ from: selectedSquare, to: promotionSquare, promotion: pieceType });
+        }
     };
 
     const bothPlayersPresent =
