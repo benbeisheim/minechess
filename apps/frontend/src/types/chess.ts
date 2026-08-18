@@ -21,7 +21,8 @@ export interface WSMove {
     from: Position;
     to: Position;
     promotion?: PieceType;
-    mine: Position;
+    /** Omitted once the mine mechanic has been dropped, when no mine is placed. */
+    mine?: Position;
 }
 
 export interface MatchFoundEvent {
@@ -67,6 +68,12 @@ export interface GameState {
     blackKingAttackedSquares: Position[];
     whiteKingAttackedSquares: Position[];
     opponentLeft: boolean;
+    /** True until black arms the opening mine, which the game now starts with. */
+    awaitingInitialMine: boolean;
+    /** False once either player is down to a lone king: from then on it is regular chess. */
+    minesEnabled: boolean;
+    /** True while this player still owes the mine that completes their turn. */
+    awaitingMinePlacement: boolean;
 }
 
 export interface TemporaryMove {

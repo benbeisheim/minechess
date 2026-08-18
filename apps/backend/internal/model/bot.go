@@ -24,10 +24,25 @@ func (g *Game) EnableBot(botColor string, difficulty int) {
 func (g *Game) BotShouldMove() (difficulty int, ok bool) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
-	if g.isBot && g.state.Resolve == nil && g.state.ToMove == g.botColor {
+	if g.isBot && g.state.Resolve == nil && !g.state.AwaitingInitialMine && g.state.ToMove == g.botColor {
 		return g.botDifficulty, true
 	}
 	return 0, false
+}
+
+// BotShouldPlaceInitialMine reports whether the opening mine is the bot's to place,
+// which it is whenever the bot is seated as black.
+func (g *Game) BotShouldPlaceInitialMine() bool {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.isBot && g.state.Resolve == nil && g.state.AwaitingInitialMine && g.botColor == "black"
+}
+
+// BotInitialMine picks the bot's opening mine, on the board as it stands.
+func (g *Game) BotInitialMine() Position {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return pickMine(g.occupiedSquares(), g.currentKingAdjacency(), g.state.Board.BlackKingPosition)
 }
 
 // FEN renders the current position as a standard FEN string for the bot service.
@@ -187,17 +202,23 @@ func (g *Game) BotMove(uci, mineSquare string) (WSMove, bool) {
 		promotion = Queen
 	}
 
+	// Once either side is down to a lone king the mine mechanic is dropped, and the
+	// bot's move carries no mine at all.
+	if !g.minesActiveAfterMove(chosen.From, chosen.To) {
+		return WSMove{From: chosen.From, To: chosen.To, Promotion: promotion}, true
+	}
+
 	// Prefer the bot service's mine; fall back to a locally chosen square when the
 	// bot took a different (random) move or supplied no usable square. The suggested
 	// square is checked against the placement rules the server now enforces —
 	// otherwise an illegal suggestion would get the bot's whole move rejected and
 	// the game would sit waiting for a reply that never comes.
 	mine, ok := parseSquare(mineSquare)
-	if !found || !ok || g.validateMinePlacement(WSMove{From: chosen.From, To: chosen.To, Mine: mine}) != nil {
+	if !found || !ok || g.validateMinePlacement(WSMove{From: chosen.From, To: chosen.To, Mine: &mine}) != nil {
 		mine = g.pickBotMine(chosen)
 	}
 
-	return WSMove{From: chosen.From, To: chosen.To, Promotion: promotion, Mine: mine}, true
+	return WSMove{From: chosen.From, To: chosen.To, Promotion: promotion, Mine: &mine}, true
 }
 
 // parseSquare converts an algebraic square (e.g. "e4") into board coordinates.
@@ -216,9 +237,12 @@ func parseSquare(square string) (Position, bool) {
 // It targets squares that will be empty after the move and that neither king can step
 // onto, matching the placement rule human players follow.
 func (g *Game) pickBotMine(move SimpleMove) Position {
-	occupied := g.occupancyAfterMove(move.From, move.To)
-	blocked := g.kingAdjacencyAfterMove(move.From, move.To)
+	return pickMine(g.occupancyAfterMove(move.From, move.To), g.kingAdjacencyAfterMove(move.From, move.To), move.From)
+}
 
+// pickMine picks a random square that is empty and not king-adjacent, falling back to
+// any empty square and finally to fallback when the position leaves no legal choice.
+func pickMine(occupied, blocked map[Position]bool, fallback Position) Position {
 	candidates := make([]Position, 0, 32)
 	for y := 0; y < 8; y++ {
 		for x := 0; x < 8; x++ {
@@ -240,5 +264,5 @@ func (g *Game) pickBotMine(move SimpleMove) Position {
 			}
 		}
 	}
-	return move.From
+	return fallback
 }
