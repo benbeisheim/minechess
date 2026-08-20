@@ -1,11 +1,10 @@
-import { useSelector } from "react-redux";
-import { RootState } from "../../store";
 import { useEffect, useRef } from "react";
+import { useAppSelector } from "../../store/hooks";
 
 const COLUMNS = "grid grid-cols-[2rem_1fr_1fr] gap-1 px-2";
 
 const MoveList: React.FC = () => {
-    const moveHistory = useSelector((state: RootState) => state.game.moveHistory);
+    const moveHistory = useAppSelector((state) => state.game.moveHistory);
     const scrollRef = useRef<HTMLDivElement>(null);
 
     // Scroll to the newest move whenever the history grows.

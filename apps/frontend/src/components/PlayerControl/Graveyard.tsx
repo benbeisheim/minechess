@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieceData } from '../../types/chess.ts';
+import { PieceData } from '../../types/chess';
 
 interface GraveyardProps {
     capturedPieces: PieceData[];

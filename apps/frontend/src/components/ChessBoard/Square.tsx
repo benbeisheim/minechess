@@ -107,7 +107,7 @@ const Square: React.FC<SquareProps> = ({
             {isPromotionSquare && ( <PromotionChoice handlePromotionClick={handlePromotionClick} orientation={orientation} /> )}
             {shouldShowFileLabel && (
                 <div 
-                    className={"absolute bottom-1 right-1 georgia " + (isLight ? "text-amber-800" : "text-amber-100")} 
+                    className={"absolute bottom-1 right-1 " + (isLight ? "text-amber-800" : "text-amber-100")} 
                     style={{ fontSize: `${labelSize}px`}}
                 >
                     {notation[0]} {/* First character of notation is file   */}

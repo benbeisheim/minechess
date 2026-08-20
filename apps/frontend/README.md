@@ -9,7 +9,6 @@ destroyed. This package is the React + TypeScript client.
 - **React 18** + **TypeScript**, bundled with **Vite**
 - **Redux Toolkit** for game state
 - **Tailwind CSS** for styling
-- **react-aria-components** for the board-color picker
 - **lottie-react** for the explosion / bombman animations
 - Realtime play over a **WebSocket** to the Go backend
 
@@ -32,7 +31,10 @@ The client talks to the backend at the URLs configured in
 
 | Path | Responsibility |
 | --- | --- |
-| `src/components` | React components (board, pieces, player controls, …) |
+| `src/App.tsx` | Session state; switches between Lobby and GameSession |
+| `src/components/Lobby` | Landing page: create/join/bot games and rules |
+| `src/components/GameSession` | In-game chrome around ChessGame (game ID, leave) |
+| `src/components` | Board, pieces, player controls, and other UI |
 | `src/store` | Redux Toolkit slice, store and typed hooks |
 | `src/gameLogic` | Pure move-generation and rules helpers |
 | `src/services` | REST + WebSocket clients and player identity |

@@ -1,4 +1,4 @@
-import { selectPromotionPiece, selectSquare, setOpponentLeft, setPlayerColor, setPromotionSquare } from "../../store/gameSlice";
+import { initializeBoard, selectPromotionPiece, selectSquare, setOpponentLeft, setPlayerColor, setPromotionSquare } from "../../store/gameSlice";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { PieceType, Position } from "../../types/chess";
 import ChessBoard from "../ChessBoard/ChessBoard";
@@ -60,6 +60,7 @@ const ChessGame: React.FC<ChessGameProps> = ({ gameId, playerColor, handleLeaveG
     const [selectedColor, setSelectedColor] = useState<BoardColorObj>(DEFAULT_BOARD_COLOR);
 
     useEffect(() => {
+        dispatch(initializeBoard());
         dispatch(setPlayerColor(playerColor));
         dispatch(setOpponentLeft(false)); // clear any stale flag from a previous game
         gameSocket.current = new GameWebSocket(gameId, dispatch);

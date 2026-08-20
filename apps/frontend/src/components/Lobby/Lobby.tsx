@@ -1,13 +1,8 @@
-// src/components/TestInterface.tsx
 import { lazy, Suspense, useState } from 'react';
-import { PlayerColor } from '../../types/chess';
-import { createGame, joinGame, createBotGame, BotDifficulty } from '../../services/api';
+import { BotDifficulty } from '../../services/api';
 import BetaBadge from '../BetaBadge/BetaBadge';
 
-// Lazily loaded so the heavy game/animation code stays out of the initial bundle
-// and the landing page loads fast.
-const ChessGame = lazy(() => import('../ChessGame/ChessGame'));
-const Bombman = lazy(() => import('../../components/Bombman/Bombman'));
+const Bombman = lazy(() => import('../Bombman/Bombman'));
 
 const BOT_LEVELS: { label: string; difficulty: BotDifficulty }[] = [
     { label: 'Easy', difficulty: 0 },
@@ -15,104 +10,20 @@ const BOT_LEVELS: { label: string; difficulty: BotDifficulty }[] = [
     { label: 'Hard', difficulty: 2 },
 ];
 
-export function TestInterface() {
-    const [gameID, setGameID] = useState<string | null>(null);
-    const [inputGameID, setInputGameID] = useState('');
-    const [playerColor, setPlayerColor] = useState<PlayerColor>("white");
-    const [opponentLabel, setOpponentLabel] = useState<string | null>(null);
-    const [opponentIsBot, setOpponentIsBot] = useState(false);
-    const [copied, setCopied] = useState(false);
+interface LobbyProps {
+    onCreateGame: () => void;
+    onJoinGame: (gameId: string) => void;
+    onPlayBot: (label: string, difficulty: BotDifficulty) => void;
+}
 
-    async function copyGameId() {
-        if (!gameID) return;
-        try {
-            await navigator.clipboard.writeText(gameID);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1500);
-        } catch {
-            // Clipboard access can be denied; fail silently.
-        }
-    }
+export function Lobby({ onCreateGame, onJoinGame, onPlayBot }: LobbyProps) {
+    const [inputGameId, setInputGameId] = useState('');
 
-    async function handleCreateGame() {
-        try {
-            const createData = await createGame();
-            const newGameID = createData.game_id;
-            if (!newGameID) {
-                throw new Error('No game ID received from server');
-            }
-            const joinData = await joinGame(newGameID);
-            setPlayerColor(joinData.color as PlayerColor);
-            setOpponentLabel(null);
-            setOpponentIsBot(false);
-            setGameID(newGameID);
-        } catch (err) {
-            console.error(err);
-        }
-    }
-
-    async function handleJoinGame(e: React.FormEvent) {
+    function handleJoinGame(e: React.FormEvent) {
         e.preventDefault();
-        try {
-            const joinData = await joinGame(inputGameID);
-            setPlayerColor(joinData.color as PlayerColor);
-            setOpponentLabel(null);
-            setOpponentIsBot(false);
-            setGameID(inputGameID);
-        } catch (err) {
-            console.error(err);
-        }
+        onJoinGame(inputGameId);
     }
 
-    async function handlePlayBot(label: string, difficulty: BotDifficulty) {
-        try {
-            const data = await createBotGame(difficulty);
-            if (!data.game_id) {
-                throw new Error('No game ID received from server');
-            }
-            setPlayerColor(data.color as PlayerColor);
-            setOpponentLabel(`Bot · ${label}`);
-            setOpponentIsBot(true);
-            setGameID(data.game_id);
-        } catch (err) {
-            console.error(err);
-        }
-    }
-
-    if (gameID) {
-        return (
-            <div className="flex h-full w-full flex-col items-center gap-3 p-4">
-                {opponentIsBot && (
-                    <div className="flex items-center gap-2 rounded-lg border border-amber-400/50 bg-amber-400/10 px-3 py-1.5 text-xs text-amber-800 dark:text-amber-200">
-                        <BetaBadge />
-                        <span>You&apos;re playing an early build of the MineChess bot.</span>
-                    </div>
-                )}
-                <div className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white/70 px-3 py-1.5 text-sm dark:border-white/15 dark:bg-white/5">
-                    <span className="text-gray-500 dark:text-gray-400">Game ID</span>
-                    <code className="font-mono font-semibold text-gray-800 dark:text-white">{gameID}</code>
-                    <button
-                        onClick={copyGameId}
-                        title="Copy game ID"
-                        className="rounded-md bg-gray-800 px-2 py-1 text-xs font-semibold text-white transition hover:bg-gray-700"
-                    >
-                        {copied ? 'Copied!' : 'Copy'}
-                    </button>
-                </div>
-                <Suspense fallback={<div className="text-gray-800 dark:text-white">Loading game…</div>}>
-                    <ChessGame
-                        gameId={gameID}
-                        playerColor={playerColor}
-                        opponentLabel={opponentLabel}
-                        opponentIsBot={opponentIsBot}
-                        handleLeaveGame={() => {
-                            setGameID(null);
-                        }}
-                    />
-                </Suspense>
-            </div>
-        );
-    }
     return (
         <div className="h-screen flex flex-col py-4 overflow-hidden">
             {/* Header with Bombman walking behind */}
@@ -142,7 +53,7 @@ export function TestInterface() {
                         {BOT_LEVELS.map(({ label, difficulty }) => (
                             <button
                                 key={label}
-                                onClick={() => handlePlayBot(label, difficulty)}
+                                onClick={() => onPlayBot(label, difficulty)}
                                 className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-semibold text-white transition hover:bg-indigo-600"
                             >
                                 {label}
@@ -161,7 +72,7 @@ export function TestInterface() {
                         Play a friend
                     </h2>
                     <button
-                        onClick={handleCreateGame}
+                        onClick={onCreateGame}
                         className="mb-3 w-full rounded-md bg-green-500 px-4 py-2 font-semibold text-white transition hover:bg-green-600"
                     >
                         Create new game
@@ -169,8 +80,8 @@ export function TestInterface() {
                     <form onSubmit={handleJoinGame} className="flex gap-2">
                         <input
                             type="text"
-                            value={inputGameID}
-                            onChange={(e) => setInputGameID(e.target.value)}
+                            value={inputGameId}
+                            onChange={(e) => setInputGameId(e.target.value)}
                             placeholder="Enter Game ID"
                             className="min-w-0 flex-1 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 dark:border-white/15 dark:bg-white/10 dark:text-white"
                         />

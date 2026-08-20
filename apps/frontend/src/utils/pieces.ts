@@ -11,7 +11,7 @@ import bR from '../assets/pieces/alpha/bR.svg';
 import bQ from '../assets/pieces/alpha/bQ.svg';
 import bK from '../assets/pieces/alpha/bK.svg';
 
-import { PieceType, PlayerColor, BoardState, PieceData } from '../types/chess';
+import { PieceType, PlayerColor, BoardState } from '../types/chess';
 
 // Create a mapping of piece types to their SVG files
 export const pieceImages = {
@@ -67,20 +67,7 @@ export const getInitialPosition = (): BoardState => {
 
     return {
         board,
-        blackKingPosition: { x: 0, y: 4 },
-        whiteKingPosition: { x: 7, y: 4 }
+        blackKingPosition: { x: 4, y: 0 },
+        whiteKingPosition: { x: 4, y: 7 }
     };
-};
-
-const pieceToNotation = {
-    pawn: '',
-    knight: 'N',
-    bishop: 'B',
-    rook: 'R',
-    queen: 'Q',
-    king: 'K'
-};
-
-export const getPieceNotation = (piece: PieceData): string => {
-    return pieceToNotation[piece.type];
 };

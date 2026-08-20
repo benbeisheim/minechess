@@ -1,11 +1,9 @@
-// src/services/websocket/types.ts
-// Define types for our WebSocket messages
-
 import { AppDispatch } from "../../store";
 import { updateGameState, setOpponentLeft } from "../../store/gameSlice";
 import { Position, WSMove } from "../../types/chess";
 import { config } from "../../config/environment";
 import { getOrCreatePlayerId } from "../playerIdentification";
+
 export type WSMessageType = 'move' | 'placeMine' | 'gameState' | 'opponentLeft' | 'error';
 
 export interface WSMessage {
@@ -13,8 +11,7 @@ export interface WSMessage {
     payload: any;  // We could make this more specific with a union type
 }
 
-// src/services/websocket/GameWebSocket.ts
-// This class manages the WebSocket connection for a specific game
+/** Manages the WebSocket connection for a specific game. */
 export class GameWebSocket {
     private socket: WebSocket | null = null;
     private gameId: string;
